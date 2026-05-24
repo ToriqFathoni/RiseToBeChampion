@@ -2,10 +2,13 @@
 
 Rise To Be Champion adalah game pertarungan 2D yang dikembangkan menggunakan framework LibGDX (Java) untuk sisi Frontend (Client) dan Spring Boot (Java) beserta PostgreSQL untuk sisi Backend (Server).
 
-## 🎮 Mainkan Game (Download)
-*(Letakkan tautan untuk mengunduh rilis game Anda di bawah ini agar pemain bisa langsung mencobanya)*
+## 🎮 Mainkan Game
 
-👉 **[Unduh Rise To Be Champion (Rilis Terbaru) di sini!](https://link-ke-game-anda.com)**
+👉 **[Mainkan Rise To Be Champion di sini!](https://toriqfathoni.itch.io/rise-to-be-champion)**
+
+## Link Hack.md (untuk melihat gambar yang tidak te reload)
+
+[hackmd](https://hackmd.io/@hibBia1FSKamsSSqsStSAA/rkmCgtxgfl)
 
 ## Struktur Repositori
 
@@ -16,8 +19,6 @@ Repositori ini terdiri dari beberapa komponen utama:
 - **Database Dump (`/databasedump`)**: Berisi *file* cadangan (*dump*) database `.sql` yang memuat struktur tabel dan data awal untuk memudahkan instalasi di lingkungan pengembangan baru.
 
 ## Cuplikan Layar (Screenshots)
-
-*(Silakan ganti tautan gambar di bawah ini dengan lokasi gambar *screenshot* Anda. Kehadiran visual akan membuat repositori Anda jauh lebih profesional dan menarik!)*
 
 ### 1. Main Menu
 ![Main Menu](path/to/main-menu.png)
@@ -81,8 +82,6 @@ Repositori ini terdiri dari beberapa komponen utama:
 4. Game akan terbuka dalam mode *Desktop* dan Anda bisa mulai memainkannya.
 
 ## Desain Diagram
-
-*(Silakan ganti tautan gambar di bawah ini dengan lokasi gambar Anda)*
 
 ### 1. Class Diagram
 ![Class Diagram](path/to/class-diagram.png)
