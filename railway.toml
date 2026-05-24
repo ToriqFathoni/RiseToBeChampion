@@ -1,0 +1,6 @@
+[build]
+builder = "NIXPACKS"
+
+[env]
+RAILPACK_JDK_VERSION = "17"
+NIXPACKS_JDK_VERSION = "17"
