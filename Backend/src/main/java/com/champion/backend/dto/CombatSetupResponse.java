@@ -35,6 +35,9 @@ public class CombatSetupResponse {
         private int maxHp;
         private int maxEnergy;
         private int baseDamage;
+        private int basicAttackDamage;
+        private int heavyAttackDamage;
+        private int skillAttackDamage;
 
         public PlayerCombatData() {
         }
@@ -45,6 +48,20 @@ public class CombatSetupResponse {
             this.maxHp = maxHp;
             this.maxEnergy = maxEnergy;
             this.baseDamage = baseDamage;
+            this.basicAttackDamage = baseDamage;
+            this.heavyAttackDamage = baseDamage;
+            this.skillAttackDamage = baseDamage;
+        }
+
+        public PlayerCombatData(Long id, String name, int maxHp, int maxEnergy, int baseDamage, int basicAttackDamage, int heavyAttackDamage, int skillAttackDamage) {
+            this.id = id;
+            this.name = name;
+            this.maxHp = maxHp;
+            this.maxEnergy = maxEnergy;
+            this.baseDamage = baseDamage;
+            this.basicAttackDamage = basicAttackDamage;
+            this.heavyAttackDamage = heavyAttackDamage;
+            this.skillAttackDamage = skillAttackDamage;
         }
 
         public Long getId() {
@@ -85,6 +102,30 @@ public class CombatSetupResponse {
 
         public void setBaseDamage(int baseDamage) {
             this.baseDamage = baseDamage;
+        }
+
+        public int getBasicAttackDamage() {
+            return basicAttackDamage;
+        }
+
+        public void setBasicAttackDamage(int basicAttackDamage) {
+            this.basicAttackDamage = basicAttackDamage;
+        }
+
+        public int getHeavyAttackDamage() {
+            return heavyAttackDamage;
+        }
+
+        public void setHeavyAttackDamage(int heavyAttackDamage) {
+            this.heavyAttackDamage = heavyAttackDamage;
+        }
+
+        public int getSkillAttackDamage() {
+            return skillAttackDamage;
+        }
+
+        public void setSkillAttackDamage(int skillAttackDamage) {
+            this.skillAttackDamage = skillAttackDamage;
         }
     }
 

@@ -75,13 +75,59 @@ public class ApiClient {
     }
 
     // Fungsi untuk mengambil setup combat (player dan enemy data) untuk stage tertentu
-    public static void getCombatSetup(int stage, Net.HttpResponseListener listener) {
+    public static void getCombatSetup(int stage, String runId, Net.HttpResponseListener listener) {
+        HttpRequestBuilder requestBuilder = new HttpRequestBuilder();
+
+        String url = BASE_URL + "/combat/setup?stage=" + stage;
+        if (runId != null && !runId.trim().isEmpty()) {
+            url += "&runId=" + runId.trim();
+        }
+
+        Net.HttpRequest request = requestBuilder.newRequest()
+            .method(Net.HttpMethods.GET)
+            .url(url)
+            .header("Accept", "application/json")
+            .build();
+
+        Gdx.net.sendHttpRequest(request, listener);
+    }
+
+    public static void getActiveProgress(String userId, Net.HttpResponseListener listener) {
         HttpRequestBuilder requestBuilder = new HttpRequestBuilder();
 
         Net.HttpRequest request = requestBuilder.newRequest()
             .method(Net.HttpMethods.GET)
-            .url(BASE_URL + "/combat/setup?stage=" + stage)
+            .url(BASE_URL + "/game/progress/" + userId)
             .header("Accept", "application/json")
+            .build();
+
+        Gdx.net.sendHttpRequest(request, listener);
+    }
+
+    public static void saveProgress(String runId, int currentStage, int deathCount, int timeElapsed, String status,
+                                    int bonusMaxHp, int bonusBasicDmg, int bonusSkillDmg, int bonusMaxEnergy, boolean hasMidbossSkill,
+                                    Net.HttpResponseListener listener) {
+        HttpRequestBuilder requestBuilder = new HttpRequestBuilder();
+
+        String jsonBody = "{" +
+            "\"runId\":\"" + runId + "\"," +
+            "\"currentStage\":" + currentStage + "," +
+            "\"deathCount\":" + deathCount + "," +
+            "\"timeElapsed\":" + timeElapsed + "," +
+            "\"status\":\"" + status + "\"," +
+            "\"bonusMaxHp\":" + bonusMaxHp + "," +
+            "\"bonusBasicDmg\":" + bonusBasicDmg + "," +
+            "\"bonusSkillDmg\":" + bonusSkillDmg + "," +
+            "\"bonusMaxEnergy\":" + bonusMaxEnergy + "," +
+            "\"hasMidbossSkill\":" + hasMidbossSkill +
+            "}";
+
+        Net.HttpRequest request = requestBuilder.newRequest()
+            .method(Net.HttpMethods.POST)
+            .url(BASE_URL + "/game/save")
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .content(jsonBody)
             .build();
 
         Gdx.net.sendHttpRequest(request, listener);

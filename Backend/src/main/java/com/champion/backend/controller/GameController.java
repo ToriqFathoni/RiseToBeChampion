@@ -1,6 +1,7 @@
 package com.champion.backend.controller;
 
 import com.champion.backend.dto.NewGameRequest;
+import com.champion.backend.dto.GameProgressResponse;
 import com.champion.backend.entity.GameCharacter;
 import com.champion.backend.entity.GameRun;
 import com.champion.backend.entity.User;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/game")
@@ -28,7 +30,52 @@ public class GameController {
     // API Mengambil Daftar Karakter (Lengkap dengan jurus barunya)
     @GetMapping("/characters")
     public ResponseEntity<List<GameCharacter>> getPlayerCharacters() {
-        return ResponseEntity.ok(characterRepository.findByType("PLAYER"));
+        ensurePlayerCharacter("Kael", 90, "Basic Strike", 12, "Heavy Slash", 28, "Ultimate Skill", 50);
+        ensurePlayerCharacter("Ryu", 105, "Hadoken", 9, "Shun Goku Satsu", 22, "Ryu's Fury", 40);
+
+        // Tolerate historical data that may store type with different case/spacing.
+        List<GameCharacter> players = characterRepository.findAll().stream()
+            .filter(c -> c.getType() != null)
+            .filter(c -> "PLAYER".equalsIgnoreCase(c.getType().trim()))
+            .collect(Collectors.toMap(
+                c -> c.getName() == null ? "" : c.getName().trim().toLowerCase(),
+                c -> c,
+                (first, second) -> first,
+                java.util.LinkedHashMap::new
+            ))
+            .values().stream()
+            .filter(c -> c.getName() != null && !c.getName().isBlank())
+            .sorted((a, b) -> a.getName().compareToIgnoreCase(b.getName()))
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(players);
+    }
+
+    private void ensurePlayerCharacter(
+        String name,
+        int baseHp,
+        String lightAttackName,
+        int lightAttackDmg,
+        String heavyAttackName,
+        int heavyAttackDmg,
+        String specialAttackName,
+        int specialAttackDmg
+    ) {
+        Optional<GameCharacter> existing = characterRepository.findAll().stream()
+            .filter(c -> c.getName() != null)
+            .filter(c -> name.equalsIgnoreCase(c.getName().trim()))
+            .findFirst();
+
+        GameCharacter character = existing.orElseGet(GameCharacter::new);
+        character.setName(name);
+        character.setType("PLAYER");
+        character.setBaseHp(baseHp);
+        character.setLightAttackName(lightAttackName);
+        character.setLightAttackDmg(lightAttackDmg);
+        character.setHeavyAttackName(heavyAttackName);
+        character.setHeavyAttackDmg(heavyAttackDmg);
+        character.setSpecialAttackName(specialAttackName);
+        character.setSpecialAttackDmg(specialAttackDmg);
+        characterRepository.save(character);
     }
 
     // API Memulai Game
@@ -85,5 +132,32 @@ public class GameController {
         runRepository.save(currentRun);
 
         return ResponseEntity.ok("Progress dan Buff berhasil disimpan!");
+    }
+
+    // API untuk mengambil progress aktif user agar bisa lanjut setelah login ulang
+    // GET http://localhost:8080/api/game/progress/{userId}
+    @GetMapping("/progress/{userId}")
+    public ResponseEntity<GameProgressResponse> getActiveProgress(@PathVariable java.util.UUID userId) {
+        Optional<GameRun> runOpt = runRepository.findByUser_UserIdAndStatus(userId, "ONGOING");
+
+        if (runOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        GameRun run = runOpt.get();
+        GameProgressResponse response = new GameProgressResponse(
+            run.getRunId(),
+            run.getCurrentStage(),
+            run.getStatus(),
+            run.getBonusMaxHp(),
+            run.getBonusBasicDmg(),
+            run.getBonusSkillDmg(),
+            run.getBonusMaxEnergy(),
+            run.isHasMidbossSkill(),
+            run.getDeathCount(),
+            run.getTimeElapsed()
+        );
+
+        return ResponseEntity.ok(response);
     }
 }

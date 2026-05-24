@@ -42,16 +42,19 @@ public class AuthController {
         // 1. Cari user berdasarkan username
         Optional<User> userOpt = userRepository.findByUsername(request.getUsername());
 
-        // 2. Jika user ditemukan, cocokkan passwordnya
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            if (user.getPasswordHash().equals(request.getPassword())) {
-                // Berhasil login, kirimkan User ID untuk dipakai di game LibGDX
-                return ResponseEntity.ok("Login sukses! UserID: " + user.getUserId());
-            }
+        // 2. Jika user tidak ditemukan
+        if (!userOpt.isPresent()) {
+            return ResponseEntity.status(404).body("Akun tidak terdaftar");
         }
 
-        // Jika gagal
-        return ResponseEntity.status(401).body("Username atau password salah!");
+        // 3. Jika user ditemukan, cocokkan passwordnya
+        User user = userOpt.get();
+        if (user.getPasswordHash().equals(request.getPassword())) {
+            // Berhasil login, kirimkan User ID untuk dipakai di game LibGDX
+            return ResponseEntity.ok("Login sukses! UserID: " + user.getUserId());
+        }
+
+        // Jika password salah
+        return ResponseEntity.status(401).body("Password salah");
     }
 }

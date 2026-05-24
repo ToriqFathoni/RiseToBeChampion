@@ -3,11 +3,14 @@ package com.risetobechampion.frontend.screens; // Sesuaikan jika berbeda
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
@@ -16,6 +19,8 @@ public class LevelMapScreen implements Screen {
     private Stage stage;
     private Skin skin;
     private final Viewport viewport;
+    private Texture backgroundTexture;
+    private Texture enterBattleTex;
 
     public LevelMapScreen() {
         viewport = new FitViewport(1280f, 720f);
@@ -32,23 +37,16 @@ public class LevelMapScreen implements Screen {
         // Membaca level saat ini dari SessionManager
         int stageSaatIni = com.risetobechampion.frontend.utils.SessionManager.getInstance().getCurrentStage();
 
-        // --- ELEMEN UI ---
-        Label titleLabel = new Label("PERJALANAN DIMULAI", skin);
+        int bgStage = Math.max(1, Math.min(4, stageSaatIni));
+        backgroundTexture = new Texture(Gdx.files.internal("mulaistage/stage" + bgStage + ".png"));
+        rootTable.setBackground(new TextureRegionDrawable(new TextureRegion(backgroundTexture)));
 
-        Label stageLabel = new Label("STAGE " + stageSaatIni, skin);
-        stageLabel.setFontScale(2.0f); // Dibuat sangat besar agar epik
-
-        // Kita bisa membuat sub-judul dinamis tergantung stagenya
-        String namaTempat = (stageSaatIni == 10) ? "Ruang Takhta Boss" : "Jalanan Gelap Zona " + stageSaatIni;
-        Label subtitleLabel = new Label(namaTempat, skin);
-
-        TextButton enterBattleBtn = new TextButton("Masuk Arena Pertarungan", skin);
+        enterBattleTex = new Texture(Gdx.files.internal("button/enter-battle-arena.png"));
+        ImageButton enterBattleBtn = new ImageButton(new TextureRegionDrawable(new TextureRegion(enterBattleTex)));
 
         // --- TATA LETAK ---
-        rootTable.add(titleLabel).padBottom(10).row();
-        rootTable.add(stageLabel).padBottom(10).row();
-        rootTable.add(subtitleLabel).padBottom(60).row();
-        rootTable.add(enterBattleBtn).width(300).height(60).row();
+        rootTable.bottom();
+        rootTable.add(enterBattleBtn).width(360).height(50).padBottom(115f).row();
 
         // --- LOGIKA TOMBOL ---
         // --- LOGIKA TOMBOL ---
@@ -58,7 +56,7 @@ public class LevelMapScreen implements Screen {
                 System.out.println("Mempersiapkan musuh untuk Stage " + stageSaatIni + "...");
 
                 // INI ADALAH KODE KUNCI UNTUK PINDAH LAYAR:
-                ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new BattleScreen());
+                ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new BattleScreen((com.risetobechampion.frontend.Main) Gdx.app.getApplicationListener()));
             }
         });
     }
@@ -92,5 +90,7 @@ public class LevelMapScreen implements Screen {
     public void dispose() {
         stage.dispose();
         skin.dispose();
+        if (backgroundTexture != null) backgroundTexture.dispose();
+        if (enterBattleTex != null) enterBattleTex.dispose();
     }
 }

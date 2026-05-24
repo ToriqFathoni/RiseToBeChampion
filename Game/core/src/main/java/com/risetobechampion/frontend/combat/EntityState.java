@@ -7,7 +7,9 @@ public enum EntityState {
     ATTACK_BASIC,
     ATTACK_HEAVY,
     SKILL,
+    DEFEND,
     HIT,
     DEFEATED,
-    TAUNT
+    TAUNT,
+    ULTIMATE
 }

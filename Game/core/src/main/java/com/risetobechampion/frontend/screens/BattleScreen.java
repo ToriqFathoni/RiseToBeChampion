@@ -1,441 +1,412 @@
 package com.risetobechampion.frontend.screens;
 
+import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
-import com.badlogic.gdx.Net;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
-import com.badlogic.gdx.scenes.scene2d.ui.ProgressBar;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
-import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.utils.JsonReader;
+import com.badlogic.gdx.utils.JsonValue;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import com.risetobechampion.frontend.Main;
 import com.risetobechampion.frontend.combat.CombatLogger;
 import com.risetobechampion.frontend.combat.Combatant;
 import com.risetobechampion.frontend.combat.CombatantFactory;
-import com.risetobechampion.frontend.command.BasicAttackCommand;
-import com.risetobechampion.frontend.command.HeavyAttackCommand;
-import com.risetobechampion.frontend.command.SkillCommand;
-import com.risetobechampion.frontend.command.TauntCommand;
-import com.risetobechampion.frontend.command.CommandInvoker;
-import com.risetobechampion.frontend.game.GameState;
 import com.risetobechampion.frontend.combat.CombatantObserver;
-import com.risetobechampion.frontend.combat.EntityState;
+import com.risetobechampion.frontend.game.PhysicsSystem;
+import com.risetobechampion.frontend.game.input.PlayerInputController;
 import com.risetobechampion.frontend.network.ApiClient;
-import com.badlogic.gdx.utils.JsonReader;
-import com.badlogic.gdx.utils.JsonValue;
+import com.risetobechampion.frontend.network.ProgressManager;
+import com.risetobechampion.frontend.screens.ui.BattleHUD;
+import com.risetobechampion.frontend.screens.ui.PauseMenu;
+import com.risetobechampion.frontend.utils.SessionManager;
+import com.badlogic.gdx.Net;
 
 public class BattleScreen implements Screen, CombatLogger, CombatantObserver {
     private static final float WORLD_WIDTH = 1280f;
     private static final float WORLD_HEIGHT = 720f;
-    private static final float FLOOR_Y = 150f;
+    private static final float FLOOR_Y = 50f;
     private static final float GRAVITY = -1500f;
-    private static final float JUMP_VELOCITY = 800f;
+    private static final float JUMP_VELOCITY = 650f;
+    private static final float SPEED = 350f;
 
+    private final Main game;
     private final SpriteBatch batch;
     private final OrthographicCamera camera;
     private final Viewport worldViewport;
     private final Viewport uiViewport;
-
     private final Stage stage;
     private final Skin skin;
 
     private Combatant player;
     private Combatant enemy;
+    private Texture stageBackgroundTexture;
 
-    private final Label combatLog;
-    private Label energyWarningLabel;
-    private Label playerHpLabel;
-    private Label playerEnergyLabel;
-    private Label enemyHpLabel;
-    private ProgressBar playerHpBar;
-    private ProgressBar playerEnergyBar;
-    private ProgressBar enemyHpBar;
-    private float energyWarningTimer;
-    
-    private Texture greenBarTexture;
-    private Texture yellowBarTexture;
+    private boolean isLoading = true;
+    private boolean isGameOver = false;
+    private boolean isPaused = false;
 
-    private boolean isGameOver;
-    private boolean isLoading;
-    private int currentStage = 1;
+    private PhysicsSystem physicsSystem;
+    private PlayerInputController playerInputController;
+    private BattleHUD hud;
+    private PauseMenu pauseMenu;
+    private Texture tryAgainTex;
+    private Texture backMenuTex;
+    private Texture losePopupTex;
 
-    public BattleScreen() {
+    private int currentStage;
+    private int deathCount;
+    private float battleTimeElapsed = 0f;
+
+    private int characterBaseAttack1 = 15;
+    private int characterBaseAttack2 = 30;
+    private int characterBaseAttack3 = 50;
+
+    public BattleScreen(Main game) {
+        this.game = game;
         batch = new SpriteBatch();
         camera = new OrthographicCamera();
         camera.setToOrtho(false, WORLD_WIDTH, WORLD_HEIGHT);
-        worldViewport = new ExtendViewport(WORLD_WIDTH, WORLD_HEIGHT, camera);
+        worldViewport = new FitViewport(WORLD_WIDTH, WORLD_HEIGHT, camera);
         uiViewport = new FitViewport(WORLD_WIDTH, WORLD_HEIGHT);
 
         stage = new Stage(uiViewport);
         Gdx.input.setInputProcessor(stage);
         UiViewportScaler.syncNow(uiViewport, WORLD_WIDTH, WORLD_HEIGHT, 0.9f);
         skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
-        
-        initializeColoredBars();
 
-        isLoading = true;
-        isGameOver = false;
+        currentStage = SessionManager.getInstance().getCurrentStage();
+        if (currentStage < 1 || currentStage > 4) {
+            currentStage = 1;
+            SessionManager.getInstance().setCurrentStage(currentStage);
+        }
 
-        // Create a temporary loading label
-        Table rootTable = new Table();
-        rootTable.setFillParent(true);
-        rootTable.center();
-        stage.addActor(rootTable);
+        deathCount = SessionManager.getInstance().getDeathCount();
 
-        combatLog = new Label("Loading combat data...", skin);
-        combatLog.setAlignment(Align.center);
-        rootTable.add(combatLog).center();
-
-        // Fetch combat data from backend
-        fetchCombatSetup(currentStage);
+        loadBackground();
+        fetchCombatSetup();
     }
 
-    /**
-     * Fetch combat setup data from the backend API.
-     * The API returns player and enemy stats, which are then used to create Combatants.
-     */
-    private void fetchCombatSetup(int stageId) {
-        ApiClient.getCombatSetup(stageId, new Net.HttpResponseListener() {
+    private void loadBackground() {
+        String backgroundPath = currentStage == 1 ? "Looks/stage1.jpeg" : "Looks/stage" + currentStage + ".png";
+        try {
+            stageBackgroundTexture = new Texture(Gdx.files.internal(backgroundPath));
+        } catch (Exception e) {
+            System.err.println("Stage background not found: " + backgroundPath);
+        }
+    }
+
+    private void fetchCombatSetup() {
+        stage.clear();
+        isLoading = true;
+        Table loadingTable = new Table();
+        loadingTable.setFillParent(true);
+        loadingTable.add(new Label("Loading Stage " + currentStage + "...", skin)).center();
+        stage.addActor(loadingTable);
+
+        String runId = SessionManager.getInstance().getRunId();
+        ApiClient.getCombatSetup(currentStage, runId, new Net.HttpResponseListener() {
             @Override
             public void handleHttpResponse(Net.HttpResponse httpResponse) {
-                final String response = httpResponse.getResultAsString();
+                String response = httpResponse.getResultAsString();
                 Gdx.app.postRunnable(() -> {
+                    loadingTable.remove();
                     try {
-                        if (httpResponse.getStatus().getStatusCode() < 200 || httpResponse.getStatus().getStatusCode() >= 300) {
-                            throw new IllegalStateException("HTTP " + httpResponse.getStatus().getStatusCode() + ": " + response);
-                        }
-
-                        JsonValue json = new JsonReader().parse(response);
-
-                        // Parse player data
-                        JsonValue playerData = json.get("player");
-                        int playerMaxHp = playerData.getInt("maxHp");
-                        int playerMaxEnergy = playerData.getInt("maxEnergy");
-
-                        // Parse enemy data
-                        JsonValue enemyData = json.get("enemy");
-                        int enemyMaxHp = enemyData.getInt("maxHp");
-                        int enemyBasicDamage = enemyData.getInt("basicAttackDamage");
-                        int enemyHeavyDamage = enemyData.getInt("heavyAttackDamage");
-
-                        // Create combatants with fetched data
-                        player = CombatantFactory.createKael(playerMaxHp, playerMaxEnergy, 200, FLOOR_Y);
-                        enemy = CombatantFactory.createMrVan(enemyMaxHp, enemyBasicDamage, enemyHeavyDamage, 900, FLOOR_Y);
-
-                        // publish to global game state (Singleton)
-                        GameState.getInstance().setPlayer(player);
-                        GameState.getInstance().setEnemy(enemy);
-
-                        // Set up observers and UI
-                        player.addObserver(BattleScreen.this);
-                        enemy.addObserver(BattleScreen.this);
-
-                        // Rebuild the UI with player and enemy data
-                        rebuildUI();
-
-                        isLoading = false;
-                        combatLog.setText("Fight! Gunakan J, K, L, T");
+                        JsonValue base = new JsonReader().parse(response);
+                        JsonValue playerData = base.get("player");
+                        JsonValue enemyData = base.get("enemy");
+                        
+                        setupCombatants(playerData, enemyData);
+                        finishSetup();
                     } catch (Exception e) {
                         e.printStackTrace();
-                        combatLog.setText("Gagal memuat data combat!");
-                        isLoading = false;
+                        fallbackSetup();
+                        finishSetup();
                     }
                 });
             }
 
             @Override
             public void failed(Throwable t) {
-                t.printStackTrace();
-                combatLog.setText("Network error: " + t.getMessage());
-                isLoading = false;
+                Gdx.app.postRunnable(() -> {
+                    loadingTable.remove();
+                    fallbackSetup();
+                    finishSetup();
+                });
             }
 
             @Override
             public void cancelled() {
-                combatLog.setText("Request cancelled");
-                isLoading = false;
+                Gdx.app.postRunnable(() -> {
+                    loadingTable.remove();
+                    fallbackSetup();
+                    finishSetup();
+                });
             }
         });
     }
 
-    /**
-     * Rebuild the UI after successful combat setup fetch.
-     */
-    private void rebuildUI() {
-        // Clear existing actors
-        stage.clear();
+    private void setupCombatants(JsonValue playerData, JsonValue enemyData) {
+        String pName = SessionManager.getInstance().getSelectedCharacterName();
+        if (pName == null) pName = playerData != null ? playerData.getString("name", "Kael The Phantom") : "Kael The Phantom";
 
-        Table rootTable = new Table();
-        rootTable.setFillParent(true);
-        rootTable.pad(24f);
-        stage.addActor(rootTable);
+        int pHp = playerData != null ? playerData.getInt("maxHp", 100) : 100;
+        characterBaseAttack1 = playerData != null ? playerData.getInt("basicAttackDamage", 15) : 15;
+        characterBaseAttack2 = playerData != null ? playerData.getInt("heavyAttackDamage", 30) : 30;
+        characterBaseAttack3 = playerData != null ? playerData.getInt("skillDamage", 50) : 50;
+        int maxEnergy = playerData != null ? playerData.getInt("maxEnergy", 100) : 100;
 
-        // Enemy HUD
-        enemyHpLabel = new Label("", skin);
-        enemyHpLabel.setColor(1f, 0.3f, 0.3f, 1f);
-        enemyHpLabel.setFontScale(1.3f);
+        SessionManager sm = SessionManager.getInstance();
+        int finalHp = pHp + sm.getPlayerHpBonus();
+        int att1 = characterBaseAttack1 + sm.getPlayerAttack1Bonus();
+        int att2 = characterBaseAttack2 + sm.getPlayerAttack2Bonus();
+        int att3 = characterBaseAttack3 + sm.getPlayerAttack3Bonus();
 
-        enemyHpBar = new ProgressBar(0f, enemy.getMaxHp(), 1f, false, skin);
-        enemyHpBar.setValue(enemy.getHp());
+        player = createCombatantFromStats(pName, finalHp, maxEnergy, att1, att2, att3, 200, true);
+        playerInputController = new PlayerInputController(PlayerInputController.InputProfile.PLAYER_1, att1, att2, att3, att3 + 80, JUMP_VELOCITY, SPEED);
 
-        // Combat Log
-        combatLog.setAlignment(Align.center);
-        combatLog.setWrap(true);
+        int eAtt1 = 10, eAtt2 = 20, eAtt3 = 40;
+        if (enemyData != null) {
+            String eName = enemyData.getString("name", "Enemy");
+            int eHp = enemyData.getInt("maxHp", 100);
+            eAtt1 = enemyData.getInt("basicAttackDamage", 10);
+            eAtt2 = enemyData.getInt("heavyAttackDamage", 20);
+            eAtt3 = enemyData.getInt("skillDamage", 40);
+            enemy = createCombatantFromStats(eName, eHp, 100, eAtt1, eAtt2, eAtt3, 900, false);
+        } else {
+            enemy = createCombatantFromStats("Mr. Van", 100, 100, eAtt1, eAtt2, eAtt3, 900, false);
+        }
+        
+        enemy.setAi(new com.risetobechampion.frontend.combat.AggressiveAi(eAtt1, eAtt2, eAtt3));
+    }
 
-        energyWarningLabel = new Label("", skin);
-        energyWarningLabel.setAlignment(Align.center);
-        energyWarningLabel.setFontScale(1.15f);
-        energyWarningLabel.setColor(1f, 0.35f, 0.35f, 1f);
+    private void fallbackSetup() {
+        SessionManager sm = SessionManager.getInstance();
+        String pName = sm.getSelectedCharacterName();
+        if (pName == null) pName = "Kael The Phantom";
 
-        // Player HUD
-        playerHpLabel = new Label("", skin);
-        playerHpLabel.setColor(0.3f, 1f, 0.3f, 1f);
-        playerHpLabel.setFontScale(1.3f);
+        int finalHp = 100 + sm.getPlayerHpBonus();
+        int att1 = 15 + sm.getPlayerAttack1Bonus();
+        int att2 = 30 + sm.getPlayerAttack2Bonus();
+        int att3 = 50 + sm.getPlayerAttack3Bonus();
 
-        playerHpBar = new ProgressBar(0f, player.getMaxHp(), 1f, false, skin);
-        playerHpBar.setValue(player.getHp());
+        player = createCombatantFromStats(pName, finalHp, 100, att1, att2, att3, 200, true);
+        playerInputController = new PlayerInputController(PlayerInputController.InputProfile.PLAYER_1, att1, att2, att3, att3 + 80, JUMP_VELOCITY, SPEED);
 
-        // Player Energy Bar (new)
-        playerEnergyLabel = new Label("", skin);
-        playerEnergyLabel.setColor(1f, 1f, 0f, 1f);
-        playerEnergyLabel.setFontScale(0.95f);
+        enemy = createCombatantFromStats("Mr. Van", 100, 100, 10, 20, 40, 900, false);
+        enemy.setAi(new com.risetobechampion.frontend.combat.AggressiveAi(10, 20, 40));
+    }
 
-        playerEnergyBar = new ProgressBar(0f, player.getMaxEnergy(), 1f, false, skin);
-        playerEnergyBar.setValue(player.getEnergy());
-        applyColoredBars();
+    private Combatant createCombatantFromStats(String name, int hp, int maxEnergy, int att1, int att2, int att3, float x, boolean facingRight) {
+        Combatant c;
+        if ("Ryu".equals(name)) {
+            c = CombatantFactory.createRyu(hp, maxEnergy, x, FLOOR_Y);
+        } else if ("Mr. Van".equals(name)) {
+            c = CombatantFactory.createMrVan(hp, att1, att2, att3, x, FLOOR_Y);
+        } else if ("Chen Long".equals(name)) {
+            c = CombatantFactory.createChenLong(hp, att1, att2, att3, x, FLOOR_Y);
+        } else if ("Kagetsu".equals(name)) {
+            c = CombatantFactory.createKagetsu(hp, att1, att2, att3, x, FLOOR_Y);
+        } else if ("Joe".equals(name)) {
+            c = CombatantFactory.createJoe(hp, att1, att2, att3, att3 + 80, x, FLOOR_Y);
+        } else {
+            c = CombatantFactory.createKael(hp, maxEnergy, x, FLOOR_Y);
+        }
+        c.setFacingRight(facingRight);
+        return c;
+    }
 
-        // Top HUD layout
-        Table topHudTable = new Table();
-        topHudTable.setFillParent(false);
+    private void finishSetup() {
+        physicsSystem = new PhysicsSystem(FLOOR_Y, GRAVITY, WORLD_WIDTH, 10f, 0.5f, 0.85f);
+        
+        hud = new BattleHUD(stage, skin);
+        hud.initialize(player, enemy, true);
 
-        Table enemyHudTable = new Table();
-        enemyHudTable.right();
-        enemyHudTable.add(enemyHpLabel).right().expandX().row();
-        enemyHudTable.add(enemyHpBar).width(420f).height(18f).right();
+        pauseMenu = new PauseMenu(stage, skin, game, () -> isPaused = false);
 
-        Table playerHudTable = new Table();
-        playerHudTable.left();
-        playerHudTable.defaults().left();
-        playerHudTable.add(playerHpLabel).left().expandX().padBottom(4f).row();
-        playerHudTable.add(playerHpBar).width(420f).height(18f).left().padBottom(10f).row();
-        playerHudTable.add(playerEnergyLabel).left().expandX().padTop(2f).padBottom(4f).row();
-        playerHudTable.add(playerEnergyBar).width(420f).height(14f).left();
-
-        topHudTable.add(playerHudTable).expandX().left().padRight(24f);
-        topHudTable.add(enemyHudTable).expandX().right();
-
-        rootTable.top();
-        rootTable.padTop(10f);
-        rootTable.add(topHudTable).expandX().fillX().top().row();
-        rootTable.add(energyWarningLabel).expandX().center().padTop(10f).row();
-        rootTable.add(combatLog).expand().center().width(760f).padTop(120f).padBottom(120f).row();
-
-        refreshHud(player);
-        refreshHud(enemy);
-        energyWarningTimer = 0f;
-        energyWarningLabel.setText("");
+        player.addObserver(this);
+        enemy.addObserver(this);
+        isLoading = false;
+        isGameOver = false;
+        battleTimeElapsed = 0f;
     }
 
     @Override
     public void log(String message) {
-        combatLog.setText(message);
         if (message != null && message.toLowerCase().contains("energi tidak cukup")) {
-            energyWarningTimer = 1.4f;
-            energyWarningLabel.setText("ENERGI TIDAK CUKUP");
-            energyWarningLabel.setColor(1f, 0.25f, 0.25f, 1f);
+            hud.showEnergyWarning();
+        } else {
+            hud.setCombatLog(message);
         }
     }
 
     @Override
     public void onCombatantChanged(Combatant combatant) {
-        refreshHud(combatant);
+        hud.refreshPlayer(combatant, combatant == player);
     }
 
-    private void refreshHud(Combatant combatant) {
-        if (combatant == player) {
-            playerHpLabel.setText(player.getName() + " HP: " + player.getHp() + " / " + player.getMaxHp());
-            playerHpBar.setValue(player.getHp());
-            playerEnergyLabel.setText("Energy:");
-            playerEnergyBar.setValue(player.getEnergy());
-        } else if (combatant == enemy) {
-            enemyHpLabel.setText(enemy.getName() + " HP: " + enemy.getHp() + " / " + enemy.getMaxHp());
-            enemyHpBar.setValue(enemy.getHp());
-        }
-    }
-    
-    private void initializeColoredBars() {
-        // Create green texture for HP bar (larger for proper stretching)
-        Pixmap greenPixmap = new Pixmap(4, 4, Pixmap.Format.RGBA8888);
-        greenPixmap.setColor(0.2f, 0.9f, 0.2f, 1f);
-        greenPixmap.fill();
-        greenBarTexture = new Texture(greenPixmap);
-        greenBarTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-        greenPixmap.dispose();
-        
-        // Create yellow texture for energy bar (larger for proper stretching)
-        Pixmap yellowPixmap = new Pixmap(4, 4, Pixmap.Format.RGBA8888);
-        yellowPixmap.setColor(1f, 1f, 0f, 1f);
-        yellowPixmap.fill();
-        yellowBarTexture = new Texture(yellowPixmap);
-        yellowBarTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-        yellowPixmap.dispose();
-    }
-    
-    private void applyColoredBars() {
-        if (playerHpBar != null && greenBarTexture != null) {
-            ProgressBar.ProgressBarStyle playerHpStyle = new ProgressBar.ProgressBarStyle(playerHpBar.getStyle());
-            playerHpStyle.knobBefore = new TextureRegionDrawable(new TextureRegion(greenBarTexture));
-            playerHpBar.setStyle(playerHpStyle);
-        }
-        
-        if (playerEnergyBar != null && yellowBarTexture != null) {
-            ProgressBar.ProgressBarStyle playerEnergyStyle = new ProgressBar.ProgressBarStyle(playerEnergyBar.getStyle());
-            playerEnergyStyle.knobBefore = new TextureRegionDrawable(new TextureRegion(yellowBarTexture));
-            playerEnergyBar.setStyle(playerEnergyStyle);
-        }
-        
-        if (enemyHpBar != null && greenBarTexture != null) {
-            ProgressBar.ProgressBarStyle enemyHpStyle = new ProgressBar.ProgressBarStyle(enemyHpBar.getStyle());
-            enemyHpStyle.knobBefore = new TextureRegionDrawable(new TextureRegion(greenBarTexture));
-            enemyHpBar.setStyle(enemyHpStyle);
-        }
+    private void togglePause() {
+        if (isGameOver || isLoading) return;
+        isPaused = !isPaused;
+        pauseMenu.setVisible(isPaused);
     }
 
     @Override
     public void render(float delta) {
-        Gdx.gl.glClearColor(0.15f, 0.15f, 0.15f, 1f);
+        Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        if (energyWarningTimer > 0f) {
-            energyWarningTimer = Math.max(0f, energyWarningTimer - delta);
-            float pulse = 0.55f + 0.45f * (float) Math.sin((1.4f - energyWarningTimer) * 18f);
-            energyWarningLabel.setColor(1f, 0.25f + 0.35f * pulse, 0.25f + 0.15f * pulse, 1f);
-            if (energyWarningTimer <= 0f) {
-                energyWarningLabel.setText("");
-            }
+        if (isLoading) {
+            uiViewport.apply();
+            stage.act(delta);
+            stage.draw();
+            return;
         }
 
-        if (!isLoading && player != null && enemy != null) {
-            updateGameLogic(delta);
-
-            worldViewport.apply();
-            camera.update();
-            batch.setProjectionMatrix(camera.combined);
-            batch.begin();
-            player.draw(batch);
-            enemy.draw(batch);
-            batch.end();
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            togglePause();
         }
 
-        stage.act(delta);
+        if (!isPaused && !isGameOver) {
+            battleTimeElapsed += delta;
+
+            playerInputController.handleInput(player, enemy, this);
+            
+            player.update(delta, enemy, this);
+            enemy.update(delta, player, this);
+            
+            physicsSystem.updatePhysics(player, enemy, delta);
+            hud.update(delta);
+
+            checkGameOver();
+        }
+
+        worldViewport.apply();
+        camera.update();
+        batch.setProjectionMatrix(camera.combined);
+        batch.begin();
+        if (stageBackgroundTexture != null) {
+            batch.draw(stageBackgroundTexture, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+        }
+        player.draw(batch);
+        enemy.draw(batch);
+        batch.end();
+
+        uiViewport.apply();
+        stage.act(isPaused ? 0f : delta);
         stage.draw();
     }
 
-    private void updateGameLogic(float delta) {
-        if (player == null || enemy == null) {
-            return;
-        }
+    private void checkGameOver() {
+        SessionManager sm = SessionManager.getInstance();
+        int newTotalTime = sm.getTotalTimeElapsed() + (int) battleTimeElapsed;
+        sm.setTotalTimeElapsed(newTotalTime);
 
-        if (!isGameOver) {
-            handlePlayerInput(delta);
-        }
-
-        player.update(delta, enemy, this);
-        enemy.update(delta, player, this);
-        player.applyPhysics(delta, GRAVITY, FLOOR_Y);
-        enemy.applyPhysics(delta, GRAVITY, FLOOR_Y);
-
-        if (!isGameOver && enemy.getHp() <= 0) {
+        if (enemy.getHp() <= 0) {
             isGameOver = true;
-            enemy.setState(EntityState.DEFEATED);
-            log("Kemenangan!");
-        } else if (!isGameOver && player.getHp() <= 0) {
+            enemy.setState(com.risetobechampion.frontend.combat.EntityState.DEFEATED);
+            if (currentStage >= 4) {
+                showFinalVictory(newTotalTime);
+            } else {
+                game.setScreen(new UpgradeScreen(game, deathCount, newTotalTime, player.getMaxHp()));
+            }
+        } else if (player.getHp() <= 0) {
             isGameOver = true;
-            player.setState(EntityState.DEFEATED);
-            log("Kekalahan!");
+            player.setState(com.risetobechampion.frontend.combat.EntityState.DEFEATED);
+            deathCount++;
+            sm.setDeathCount(deathCount);
+            showGameOverDialog(newTotalTime);
         }
     }
 
-    private void handlePlayerInput(float delta) {
-        if (player.getHp() <= 0 || player.isLocked()) {
-            return;
-        }
-
-        player.getVelocity().x = 0f;
-        float speed = 350f;
-
-        if (Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
-            player.getVelocity().x = -speed;
-            player.setFacingRight(false);
-            if (player.isGrounded()) {
-                player.setState(EntityState.WALK);
+    private void showFinalVictory(int totalTime) {
+        hud.setCombatLog("STORY MODE CLEARED!");
+        ProgressManager.saveCurrentProgress(4, deathCount, totalTime, "COMPLETED", new ProgressManager.SaveCallback() {
+            @Override
+            public void onSuccess() {
+                SessionManager.getInstance().resetRunProgress();
+                Gdx.app.postRunnable(() -> game.setScreen(new VictoryScreen(game, deathCount, totalTime)));
             }
-        } else if (Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
-            player.getVelocity().x = speed;
-            player.setFacingRight(true);
-            if (player.isGrounded()) {
-                player.setState(EntityState.WALK);
+
+            @Override
+            public void onFailure(String errorMsg) {
+                SessionManager.getInstance().resetRunProgress();
+                Gdx.app.postRunnable(() -> game.setScreen(new MainMenuScreen()));
             }
-        } else if (player.isGrounded()) {
-            player.setState(EntityState.IDLE);
-        }
-
-        if ((Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.SPACE)) && player.isGrounded()) {
-            player.jump(JUMP_VELOCITY);
-        }
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.J)) {
-            CommandInvoker.getInstance().execute(new BasicAttackCommand(player, enemy, 10, this));
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.K)) {
-            CommandInvoker.getInstance().execute(new HeavyAttackCommand(player, enemy, 25, this));
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.L)) {
-            CommandInvoker.getInstance().execute(new SkillCommand(player, enemy, 45, this));
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.T)) {
-            CommandInvoker.getInstance().execute(new TauntCommand(player, this));
-        }
+        });
     }
 
-    @Override
-    public void show() {
+    private void showGameOverDialog(int totalTime) {
+        hud.setCombatLog("YOU DIED");
+        ProgressManager.saveCurrentProgress(currentStage, deathCount, totalTime, "ONGOING", null);
+        com.badlogic.gdx.scenes.scene2d.ui.Dialog dialog = new com.badlogic.gdx.scenes.scene2d.ui.Dialog("", skin) {
+            @Override
+            protected void result(Object object) {
+                if (object.equals(true)) {
+                    fetchCombatSetup();
+                } else {
+                    game.setScreen(new MainMenuScreen());
+                }
+            }
+        };
+        
+        losePopupTex = new Texture(Gdx.files.internal("lose/Lose.png"));
+        dialog.setBackground(new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(new com.badlogic.gdx.graphics.g2d.TextureRegion(losePopupTex)));
+        
+        tryAgainTex = new Texture(Gdx.files.internal("button/try-again.png"));
+        backMenuTex = new Texture(Gdx.files.internal("button/back-to-main-menu.png"));
+        
+        com.badlogic.gdx.scenes.scene2d.ui.Button.ButtonStyle tryAgainStyle = new com.badlogic.gdx.scenes.scene2d.ui.Button.ButtonStyle();
+        tryAgainStyle.up = new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(new com.badlogic.gdx.graphics.g2d.TextureRegion(tryAgainTex));
+        com.badlogic.gdx.scenes.scene2d.ui.Button tryAgainBtn = new com.badlogic.gdx.scenes.scene2d.ui.Button(tryAgainStyle);
+        
+        com.badlogic.gdx.scenes.scene2d.ui.Button.ButtonStyle backMenuStyle = new com.badlogic.gdx.scenes.scene2d.ui.Button.ButtonStyle();
+        backMenuStyle.up = new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(new com.badlogic.gdx.graphics.g2d.TextureRegion(backMenuTex));
+        com.badlogic.gdx.scenes.scene2d.ui.Button backMenuBtn = new com.badlogic.gdx.scenes.scene2d.ui.Button(backMenuStyle);
+        
+        dialog.getButtonTable().add(tryAgainBtn).width(250).height(60).padBottom(5).row();
+        dialog.getButtonTable().add(backMenuBtn).width(250).height(60).padBottom(40);
+        
+        dialog.setObject(tryAgainBtn, true);
+        dialog.setObject(backMenuBtn, false);
+        
+        dialog.show(stage);
+        
+        // Membatasi ukuran popup agar tidak terlalu besar
+        dialog.setSize(600f, 350f);
+        dialog.setPosition((stage.getWidth() - dialog.getWidth()) / 2f, (stage.getHeight() - dialog.getHeight()) / 2f);
     }
 
     @Override
     public void resize(int width, int height) {
         worldViewport.update(width, height, true);
-        UiViewportScaler.update(uiViewport, width, height, WORLD_WIDTH, WORLD_HEIGHT, 0.9f);
-    }
-
-    @Override
-    public void pause() {
-    }
-
-    @Override
-    public void resume() {
-    }
-
-    @Override
-    public void hide() {
+        uiViewport.update(width, height, true);
+        UiViewportScaler.syncNow(uiViewport, WORLD_WIDTH, WORLD_HEIGHT, 0.9f);
     }
 
     @Override
     public void dispose() {
-        if (player != null) player.dispose();
-        if (enemy != null) enemy.dispose();
-        if (greenBarTexture != null) greenBarTexture.dispose();
-        if (yellowBarTexture != null) yellowBarTexture.dispose();
+        batch.dispose();
         stage.dispose();
         skin.dispose();
-        batch.dispose();
+        if (stageBackgroundTexture != null) stageBackgroundTexture.dispose();
+        if (pauseMenu != null) pauseMenu.dispose();
+        if (tryAgainTex != null) tryAgainTex.dispose();
+        if (backMenuTex != null) backMenuTex.dispose();
+        if (losePopupTex != null) losePopupTex.dispose();
     }
+
+    @Override public void show() {}
+    @Override public void pause() {}
+    @Override public void resume() {}
+    @Override public void hide() {}
 }

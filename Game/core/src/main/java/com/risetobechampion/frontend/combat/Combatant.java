@@ -15,19 +15,34 @@ import java.util.Map;
 
 public class Combatant {
     private static final float ENERGY_REGEN_PER_SECOND = 12f;
-    private static final int BASIC_ATTACK_ENERGY_COST = 8;
-    private static final int HEAVY_ATTACK_ENERGY_COST = 18;
-    private static final int SKILL_ENERGY_COST = 30;
+    private static final int BASIC_ATTACK_ENERGY_PERCENT = 20;
+    private static final int HEAVY_ATTACK_ENERGY_PERCENT = 40;
+    private static final int SKILL_ENERGY_PERCENT = 75;
+    private static final int ULTIMATE_ENERGY_PERCENT = 40;
+    private static final int JUMP_ENERGY_PERCENT = 10;
+    private static final float DEFEND_DURATION = 1.35f;
+    private static final int DEFEND_ENERGY_HIT_COST = 5;
+    private static final float LOCOMOTION_EPSILON = 8f;
 
     private static final class AnimationClip {
         private final Animation<TextureRegion> animation;
         private final float scale;
         private final int frameCount;
+        private final float[] frameBottomPadding;
 
-        private AnimationClip(Animation<TextureRegion> animation, float scale, int frameCount) {
+        private AnimationClip(Animation<TextureRegion> animation, float scale, int frameCount, float[] frameBottomPadding) {
             this.animation = animation;
             this.scale = scale;
             this.frameCount = frameCount;
+            this.frameBottomPadding = frameBottomPadding;
+        }
+
+        private float getFrameBottomPadding(int frameIndex) {
+            if (frameBottomPadding == null || frameIndex < 0 || frameIndex >= frameBottomPadding.length) {
+                return 0f;
+            }
+
+            return frameBottomPadding[frameIndex];
         }
     }
 
@@ -88,8 +103,9 @@ public class Combatant {
 
     private final Map<EntityState, Integer> attackHitFrames = new EnumMap<>(EntityState.class);
     private final Map<EntityState, Float> attackRanges = new EnumMap<>(EntityState.class);
-    private float hitFlashTimer = 0f;
     private float energyRegenAccumulator = 0f;
+    private boolean defenseActive = false;
+    private float defenseTimer = 0f;
 
     public void setAttackHitFrame(EntityState action, int frameIndex) {
         if (action == null) return;
@@ -139,14 +155,17 @@ public class Combatant {
         try {
             int safeColumns = Math.max(1, columns);
             Array<TextureRegion> frames = new Array<>(safeColumns);
+            float[] frameBottomPadding = null;
 
             if (useAutoSplit) {
                 IrregularSpriteSheetSplitter.SplitResult splitResult = irregularSplitter.autoSplitIrregularSpriteSheetWithTexture(path);
                 ownedTextures.add(splitResult.getTexture());
 
                 int maxFrames = Math.min(safeColumns, splitResult.getFrames().size);
+                frameBottomPadding = new float[maxFrames];
                 for (int i = 0; i < maxFrames; i++) {
                     frames.add(splitResult.getFrames().get(i));
+                    frameBottomPadding[i] = splitResult.getFrameBottomPadding().get(i);
                 }
             } else {
                 Texture sheet = new Texture(Gdx.files.internal(path));
@@ -168,7 +187,7 @@ public class Combatant {
                 return;
             }
 
-            animations.put(state, new AnimationClip(new Animation<>(frameDuration, frames, loop ? Animation.PlayMode.LOOP : Animation.PlayMode.NORMAL), scale, frames.size));
+            animations.put(state, new AnimationClip(new Animation<>(frameDuration, frames, loop ? Animation.PlayMode.LOOP : Animation.PlayMode.NORMAL), scale, frames.size, frameBottomPadding));
             notifyObservers();
         } catch (Exception exception) {
             System.err.println("ERROR MEMUAT ASET: " + path + ". Pastikan file ada!");
@@ -192,6 +211,15 @@ public class Combatant {
             return;
         }
 
+        int jumpEnergyCost = getJumpEnergyCost();
+        if (jumpEnergyCost > 0 && energy < jumpEnergyCost) {
+            return;
+        }
+
+        if (jumpEnergyCost > 0) {
+            setEnergy(energy - jumpEnergyCost);
+        }
+
         velocity.y = jumpVelocity;
         grounded = false;
         setState(EntityState.JUMP);
@@ -200,6 +228,14 @@ public class Combatant {
     public void setRenderSize(float renderWidth, float renderHeight) {
         this.renderWidth = Math.max(1f, renderWidth);
         this.renderHeight = Math.max(1f, renderHeight);
+    }
+
+    public float getRenderWidth() {
+        return renderWidth > 0f ? renderWidth : 0f;
+    }
+
+    public float getRenderHeight() {
+        return renderHeight > 0f ? renderHeight : 0f;
     }
 
     public void setRenderOffsetY(float renderOffsetY) {
@@ -279,7 +315,7 @@ public class Combatant {
         if (currentState != newState) {
             currentState = newState;
             stateTime = 0f;
-            locked = newState == EntityState.ATTACK_BASIC || newState == EntityState.ATTACK_HEAVY || newState == EntityState.SKILL || newState == EntityState.HIT || newState == EntityState.TAUNT;
+            locked = newState == EntityState.ATTACK_BASIC || newState == EntityState.ATTACK_HEAVY || newState == EntityState.SKILL || newState == EntityState.ULTIMATE || newState == EntityState.HIT || newState == EntityState.TAUNT || newState == EntityState.DEFEND;
             if (locked) {
                 velocity.x = 0f;
             }
@@ -292,10 +328,16 @@ public class Combatant {
             return;
         }
 
-        hp = Math.max(0, hp - Math.max(0, damage));
+        int finalDamage = Math.max(0, damage);
+        if (defenseActive) {
+            finalDamage = 0;
+            if (energy > 0) {
+                setEnergy(energy - DEFEND_ENERGY_HIT_COST);
+            }
+        }
+
+        hp = Math.max(0, hp - finalDamage);
         setState(hp == 0 ? EntityState.DEFEATED : EntityState.HIT);
-        // trigger a brief flash for feedback
-        hitFlashTimer = 0.12f;
         // try to play optional hit sound if present
         try {
             if (Gdx.files.internal("sfx/hit.wav").exists()) {
@@ -314,7 +356,29 @@ public class Combatant {
     }
 
     public void performAction(Combatant target, EntityState action, int damage, CombatLogger logger) {
-        if (target == null || hp <= 0) {
+        if (hp <= 0) {
+            return;
+        }
+
+        if (action == EntityState.DEFEND) {
+            defenseActive = true;
+            defenseTimer = DEFEND_DURATION;
+            setState(EntityState.DEFEND);
+            if (logger != null) {
+                logger.log(name + " bersiap menangkis serangan!");
+            }
+            return;
+        }
+
+        if (action == EntityState.TAUNT) {
+            if (logger != null) {
+                logger.log(name + " melakukan Taunt!");
+            }
+            setState(EntityState.TAUNT);
+            return;
+        }
+
+        if (target == null) {
             return;
         }
 
@@ -330,10 +394,6 @@ public class Combatant {
 
         // Schedule attack to apply damage at the proper hit frame of the animation
         setState(action);
-        if (action == EntityState.TAUNT) {
-            logger.log(name + " melakukan Taunt!");
-            return;
-        }
 
         // Determine trigger time based on animation duration (fallback to mid animation)
         AnimationClip clip = animations.get(action);
@@ -378,6 +438,13 @@ public class Combatant {
             energyRegenAccumulator = 0f;
         }
 
+        if (defenseActive) {
+            defenseTimer = Math.max(0f, defenseTimer - delta);
+            if (defenseTimer <= 0f) {
+                defenseActive = false;
+            }
+        }
+
         if (ai != null && !locked) {
             ai.execute(this, target, delta, logger);
         }
@@ -417,7 +484,11 @@ public class Combatant {
 
         if (locked) {
             AnimationClip clip = animations.get(currentState);
-            if (clip != null && clip.animation.isAnimationFinished(stateTime)) {
+            boolean finished = clip != null && clip.animation.isAnimationFinished(stateTime);
+            if (currentState == EntityState.DEFEND) {
+                finished = !defenseActive;
+            }
+            if (finished) {
                 locked = false;
                 if (hp > 0) {
                     setState(EntityState.IDLE);
@@ -427,10 +498,6 @@ public class Combatant {
             }
         }
 
-        // Advance hit flash timer
-        if (hitFlashTimer > 0f) {
-            hitFlashTimer = Math.max(0f, hitFlashTimer - delta);
-        }
     }
 
     private float getAttackRange(EntityState action) {
@@ -444,21 +511,35 @@ public class Combatant {
         }
     }
 
-    private int getEnergyCost(EntityState action) {
+    public int getEnergyCost(EntityState action) {
         if (action == null) {
             return 0;
         }
 
         switch (action) {
             case ATTACK_BASIC:
-                return BASIC_ATTACK_ENERGY_COST;
+                return getEnergyCostFromPercent(BASIC_ATTACK_ENERGY_PERCENT);
             case ATTACK_HEAVY:
-                return HEAVY_ATTACK_ENERGY_COST;
+                return getEnergyCostFromPercent(HEAVY_ATTACK_ENERGY_PERCENT);
             case SKILL:
-                return SKILL_ENERGY_COST;
+                return getEnergyCostFromPercent(SKILL_ENERGY_PERCENT);
+            case ULTIMATE:
+                return getEnergyCostFromPercent(ULTIMATE_ENERGY_PERCENT);
             default:
                 return 0;
         }
+    }
+
+    private int getJumpEnergyCost() {
+        return getEnergyCostFromPercent(JUMP_ENERGY_PERCENT);
+    }
+
+    private int getEnergyCostFromPercent(int percent) {
+        if (maxEnergy <= 0 || percent <= 0) {
+            return 0;
+        }
+
+        return Math.max(1, Math.round(maxEnergy * (percent / 100f)));
     }
 
     public void applyPhysics(float delta, float gravity, float floorY) {
@@ -477,15 +558,23 @@ public class Combatant {
                 position.y = floorY;
                 velocity.y = 0f;
                 grounded = true;
-                if (currentState == EntityState.JUMP && !locked) {
-                    setState(velocity.x == 0f ? EntityState.IDLE : EntityState.WALK);
-                }
+            }
+        }
+
+        if (!locked && hp > 0 && grounded && currentState != EntityState.ATTACK_BASIC && currentState != EntityState.ATTACK_HEAVY && currentState != EntityState.SKILL && currentState != EntityState.ULTIMATE && currentState != EntityState.HIT && currentState != EntityState.TAUNT && currentState != EntityState.DEFEND) {
+            if (Math.abs(velocity.x) > LOCOMOTION_EPSILON) {
+                setState(EntityState.WALK);
+            } else {
+                setState(EntityState.IDLE);
             }
         }
     }
 
     public void draw(SpriteBatch batch) {
         AnimationClip clip = animations.get(currentState);
+        if (clip == null && currentState == EntityState.DEFEND) {
+            clip = animations.get(EntityState.IDLE);
+        }
         if (clip == null) {
             return;
         }
@@ -498,18 +587,12 @@ public class Combatant {
             frame.flip(true, false);
         }
 
-        // If recently hit, tint the sprite briefly for feedback
-        boolean flashed = hitFlashTimer > 0f;
-        if (flashed) {
-            batch.setColor(1f, 0.6f, 0.6f, 1f);
-        }
-
         float drawWidth = renderWidth > 0f ? renderWidth : frame.getRegionWidth() * clip.scale;
         float drawHeight = renderHeight > 0f ? renderHeight : frame.getRegionHeight() * clip.scale;
-        batch.draw(frame, position.x, position.y + renderOffsetY, drawWidth, drawHeight);
-        if (flashed) {
-            batch.setColor(1f, 1f, 1f, 1f);
-        }
+        int frameIndex = clip.animation.getKeyFrameIndex(stateTime);
+        float frameBottomPadding = clip.getFrameBottomPadding(frameIndex);
+        float scaledBottomPadding = frame.getRegionHeight() > 0f ? frameBottomPadding * (drawHeight / frame.getRegionHeight()) : 0f;
+        batch.draw(frame, position.x, position.y + renderOffsetY - scaledBottomPadding, drawWidth, drawHeight);
     }
 
     public void dispose() {

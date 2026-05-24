@@ -3,11 +3,15 @@ package com.risetobechampion.frontend.screens; // Sesuaikan jika berbeda
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
@@ -16,6 +20,8 @@ public class CharacterSelectScreen implements Screen {
     private Stage stage;
     private Skin skin;
     private final Viewport viewport;
+    private Texture backgroundTexture;
+    private Texture backToMenuTex;
 
     public CharacterSelectScreen() {
         viewport = new FitViewport(1280f, 720f);
@@ -25,8 +31,11 @@ public class CharacterSelectScreen implements Screen {
 
         skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
 
+        backgroundTexture = new Texture(Gdx.files.internal("Looks/story-mode-choose-character.png"));
+
         final Table rootTable = new Table();
         rootTable.setFillParent(true);
+        rootTable.setBackground(new TextureRegionDrawable(new TextureRegion(backgroundTexture)));
         stage.addActor(rootTable);
 
         // Label Judul (Bisa langsung ditambahkan)
@@ -76,6 +85,9 @@ public class CharacterSelectScreen implements Screen {
                                     @Override
                                     public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
                                         System.out.println("Karakter " + charName + " (ID: " + charId + ") dipilih!");
+                                        
+                                        // Simpan karakter yang dipilih ke SessionManager
+                                        com.risetobechampion.frontend.utils.SessionManager.getInstance().setSelectedCharacterName(charName);
 
                                         // Mengambil UserID dari sesi global
                                         String loggedInUserId = com.risetobechampion.frontend.utils.SessionManager.getInstance().getUserId();
@@ -151,9 +163,9 @@ public class CharacterSelectScreen implements Screen {
                         rootTable.clearChildren();
                         rootTable.add(titleLabel).padBottom(40).row();
                         rootTable.add(new Label("Koneksi ke server terputus!", skin)).row();
-
-                        TextButton backBtn = new TextButton("Kembali ke Main Menu", skin);
-                        rootTable.add(backBtn).width(200).height(40).padTop(30).row();
+                        if (backToMenuTex == null) backToMenuTex = new Texture(Gdx.files.internal("button/back-to-main-menu.png"));
+                        ImageButton backBtn = new ImageButton(new TextureRegionDrawable(new TextureRegion(backToMenuTex)));
+                        rootTable.add(backBtn).width(250).height(50).padTop(30).row();
                         backBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
                             @Override
                             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
@@ -200,5 +212,7 @@ public class CharacterSelectScreen implements Screen {
     public void dispose() {
         stage.dispose();
         skin.dispose();
+        if (backgroundTexture != null) backgroundTexture.dispose();
+        if (backToMenuTex != null) backToMenuTex.dispose();
     }
 }
