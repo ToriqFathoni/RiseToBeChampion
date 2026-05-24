@@ -6,9 +6,16 @@ import com.badlogic.gdx.net.HttpRequestBuilder;
 
 // tembak api backend
 public class ApiClient {
-
-    private static final String BASE_URL = "http://localhost:8080/api";
-
+    // ===== KONFIGURASI DEPLOYMENT =====
+    // Ubah ke 'true' sebelum men-deploy game ke itch.io
+    public static final boolean IS_PRODUCTION = false;
+    
+    // Ganti URL Railway ini dengan URL asli yang Anda dapatkan setelah mendeploy Backend ke Railway
+    private static final String RAILWAY_URL = "https://risetobechampion-production.up.railway.app/api";
+    private static final String LOCAL_URL = "http://localhost:8080/api";
+    
+    private static final String BASE_URL = IS_PRODUCTION ? RAILWAY_URL : LOCAL_URL;
+    // ===================================
     public static void login(String username, String password, Net.HttpResponseListener listener) {
         HttpRequestBuilder requestBuilder = new HttpRequestBuilder();
 

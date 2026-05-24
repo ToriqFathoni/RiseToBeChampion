@@ -1,0 +1,47 @@
+buildscript {
+  repositories {
+    mavenCentral()
+    maven { url "https://plugins.gradle.org/m2/" }
+  }
+  dependencies {
+    classpath 'org.gretty:gretty:3.1.0'
+    classpath 'org.wisepersist:gwt-gradle-plugin:1.1.19'
+  }
+}
+apply plugin: "gwt"
+apply plugin: "war"
+apply plugin: "org.gretty"
+
+gwt {
+  gwtVersion = "2.10.0"
+  modules 'com.risetobechampion.frontend.GdxDefinition'
+  maxHeapSize = '1G'
+  minHeapSize = '1G'
+  
+  compiler.strict = true
+  compiler.disableCastChecking = true
+  
+  sourceSets {
+    main {
+      java.srcDirs = ['src/main/java']
+    }
+  }
+}
+
+dependencies {
+  implementation project(':core')
+  api "com.badlogicgames.gdx:gdx-backend-gwt:$gdxVersion"
+  api "com.badlogicgames.gdx:gdx:$gdxVersion:sources"
+  api "com.badlogicgames.gdx:gdx-backend-gwt:$gdxVersion:sources"
+  api "com.badlogicgames.gdx-controllers:gdx-controllers-core:2.2.3:sources"
+  api "com.badlogicgames.gdx-controllers:gdx-controllers-gwt:2.2.3"
+  api "com.badlogicgames.gdx-controllers:gdx-controllers-gwt:2.2.3:sources"
+}
+
+task addSource {
+  doLast {
+    sourceSets.main.compileClasspath += files(project(':core').sourceSets.main.allJava.srcDirs)
+  }
+}
+tasks.compileGwt.dependsOn(addSource)
+tasks.draftCompileGwt.dependsOn(addSource)
