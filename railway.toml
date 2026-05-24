@@ -1,5 +1,4 @@
-[build]
-builder = "NIXPACKS"
+
 
 [env]
 RAILPACK_JDK_VERSION = "17"
