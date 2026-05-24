@@ -27,7 +27,6 @@ public class GameRun {
     @Column(nullable = true)
     private Integer finalRating;
 
-    // --- Status Buff Dinamis ---
     private int bonusMaxHp = 0;
     private int bonusBasicDmg = 0;
     private int bonusSkillDmg = 0;
@@ -138,5 +137,4 @@ public class GameRun {
         this.hasMidbossSkill = hasMidbossSkill;
     }
 
-    // Jangan lupa generate Getter dan Setter
 }

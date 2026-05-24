@@ -28,7 +28,6 @@ public class Enemy {
     @Column(nullable = false)
     private int skillDamage;
 
-    // Constructors
     public Enemy() {
     }
 
@@ -41,7 +40,6 @@ public class Enemy {
         this.skillDamage = skillDamage;
     }
 
-    // Getters and Setters
     public Long getId() {
         return id;
     }

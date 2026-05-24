@@ -4,9 +4,6 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Net;
 import com.risetobechampion.frontend.utils.SessionManager;
 
-/**
- * Handles saving progress cleanly without cluttering the screen logic.
- */
 public class ProgressManager {
 
     public interface SaveCallback {
@@ -14,6 +11,7 @@ public class ProgressManager {
         void onFailure(String errorMsg);
     }
 
+    // simpan progress
     public static void saveCurrentProgress(int currentStage, int deathCount, int timeElapsed, String status, SaveCallback callback) {
         SessionManager sessionManager = SessionManager.getInstance();
         if (sessionManager.getRunId() == null || sessionManager.getRunId().isEmpty()) {
@@ -21,6 +19,7 @@ public class ProgressManager {
             return;
         }
 
+        // tembak api backend
         ApiClient.saveProgress(
             sessionManager.getRunId(),
             currentStage,

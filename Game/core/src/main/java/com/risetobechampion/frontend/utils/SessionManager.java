@@ -29,7 +29,6 @@ public final class SessionManager {
         this.userId = userId;
     }
 
-    // --- KODE BARU ---
     public String getRunId() {
         return runId;
     }
@@ -117,7 +116,6 @@ public final class SessionManager {
         isLocalMultiplayer = false;
         resetRunProgress();
     }
-    // -----------------
 
     public int getDeathCount() {
         return deathCount;

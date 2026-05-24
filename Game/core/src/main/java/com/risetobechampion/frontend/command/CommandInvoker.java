@@ -2,7 +2,6 @@ package com.risetobechampion.frontend.command;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-/** Singleton invoker for Command pattern. Executes commands immediately or queues them. */
 public class CommandInvoker {
     private static final CommandInvoker INSTANCE = new CommandInvoker();
     private final ConcurrentLinkedQueue<Command> queue = new ConcurrentLinkedQueue<>();
@@ -17,7 +16,7 @@ public class CommandInvoker {
     public void execute(Command cmd) {
         if (cmd == null) return;
         try {
-            // execute synchronously
+
             cmd.execute();
         } catch (Exception e) {
             e.printStackTrace();

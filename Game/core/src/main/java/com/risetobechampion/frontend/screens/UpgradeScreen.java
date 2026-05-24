@@ -89,6 +89,8 @@ public class UpgradeScreen implements Screen {
     private Label attack3ValueLabel;
     private float summaryAnimationTime = 0f;
     private boolean victoryProgressSaved = false;
+    private com.risetobechampion.frontend.game.input.UiControllerNavigator uiNavigator;
+    private boolean prevDPadLeft, prevDPadRight, prevBtnA;
 
     public UpgradeScreen(Main game, int deathCount, int battleTimeElapsed, int playerMaxHp) {
         this.game = game;
@@ -220,6 +222,7 @@ public class UpgradeScreen implements Screen {
 
         if (saveStatusLabel != null) saveStatusLabel.setText("Menyimpan progress...");
         
+        // simpan progress
         ProgressManager.saveCurrentProgress(currentStage + 1, deathCount, battleTimeElapsed, "ONGOING", new ProgressManager.SaveCallback() {
             @Override
             public void onSuccess() {
@@ -303,6 +306,7 @@ public class UpgradeScreen implements Screen {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
                 if (!nextStageButton.isDisabled()) {
+                    // ganti page
                     game.setScreen(new LevelMapScreen());
                 }
             }
@@ -314,12 +318,17 @@ public class UpgradeScreen implements Screen {
         backMenuBtn.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
+                // ganti page
                 game.setScreen(new MainMenuScreen());
             }
         });
         buttonsTable.add(backMenuBtn).width(240f).height(55f).padBottom(10f).row();
 
         contentTable.add(buttonsTable).bottom().padBottom(30f).row();
+
+        uiNavigator = new com.risetobechampion.frontend.game.input.UiControllerNavigator();
+        uiNavigator.addButton(nextStageButton);
+        uiNavigator.addButton(backMenuBtn);
     }
 
     @Override
@@ -328,15 +337,36 @@ public class UpgradeScreen implements Screen {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         if (phase == Phase.CHOICE) {
-            if (Gdx.input.isKeyJustPressed(Input.Keys.LEFT) || Gdx.input.isKeyJustPressed(Input.Keys.A)) {
+            boolean ctrlLeft = false;
+            boolean ctrlRight = false;
+            boolean ctrlA = false;
+            
+            if (com.badlogic.gdx.controllers.Controllers.getControllers().size > 0) {
+                com.badlogic.gdx.controllers.Controller c = com.badlogic.gdx.controllers.Controllers.getControllers().get(0);
+                com.badlogic.gdx.controllers.ControllerMapping m = c.getMapping();
+                
+                boolean currentLeft = c.getButton(m.buttonDpadLeft) || c.getAxis(m.axisLeftX) < -0.5f;
+                boolean currentRight = c.getButton(m.buttonDpadRight) || c.getAxis(m.axisLeftX) > 0.5f;
+                boolean currentA = c.getButton(m.buttonA);
+                
+                ctrlLeft = currentLeft && !prevDPadLeft;
+                ctrlRight = currentRight && !prevDPadRight;
+                ctrlA = currentA && !prevBtnA;
+                
+                prevDPadLeft = currentLeft;
+                prevDPadRight = currentRight;
+                prevBtnA = currentA;
+            }
+
+            if (Gdx.input.isKeyJustPressed(Input.Keys.LEFT) || Gdx.input.isKeyJustPressed(Input.Keys.A) || ctrlLeft) {
                 selectedUpgradeIndex = (selectedUpgradeIndex + upgradeOptions.length - 1) % upgradeOptions.length;
                 refreshCardStates();
             }
-            if (Gdx.input.isKeyJustPressed(Input.Keys.RIGHT) || Gdx.input.isKeyJustPressed(Input.Keys.D)) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.RIGHT) || Gdx.input.isKeyJustPressed(Input.Keys.D) || ctrlRight) {
                 selectedUpgradeIndex = (selectedUpgradeIndex + 1) % upgradeOptions.length;
                 refreshCardStates();
             }
-            if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER) || ctrlA) {
                 confirmSelectedUpgrade();
             }
 
@@ -350,18 +380,28 @@ public class UpgradeScreen implements Screen {
             }
         } else if (phase == Phase.SUMMARY) {
             summaryAnimationTime += delta;
+            if (uiNavigator != null) {
+                // update status secara berkala
+                uiNavigator.update();
+            }
         }
 
         stage.act(delta);
+        // render karakter/gambar
         stage.draw();
     }
 
     @Override
     public void resize(int width, int height) {
+        // update status secara berkala
         stage.getViewport().update(width, height, true);
     }
 
-    @Override public void show() {}
+    @Override
+    public void show() {
+        // putar lagu menu
+        com.risetobechampion.frontend.utils.AudioManager.getInstance().playMainMusic();
+    }
     @Override public void pause() {}
     @Override public void resume() {}
     @Override public void hide() {}

@@ -16,45 +16,38 @@ public class AuthController {
     @Autowired
     private UserRepository userRepository;
 
-    // Endpoint untuk Register: POST http://localhost:8080/api/auth/register
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody AuthRequest request) {
-        // 1. Cek apakah username sudah ada di database
+
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             return ResponseEntity.badRequest().body("Username sudah terdaftar!");
         }
 
-        // 2. Buat User baru dan simpan ke database
         User newUser = new User();
         newUser.setUsername(request.getUsername());
 
-        // Catatan: Untuk proyek Oprec yang sesungguhnya, password sebaiknya di-hash (BCrypt).
-        // Untuk saat ini kita simpan langsung agar mudah dites.
         newUser.setPasswordHash(request.getPassword());
 
+        // simpan ke db
         userRepository.save(newUser);
         return ResponseEntity.ok("Registrasi berhasil!");
     }
 
-    // Endpoint untuk Login: POST http://localhost:8080/api/auth/login
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody AuthRequest request) {
-        // 1. Cari user berdasarkan username
+
         Optional<User> userOpt = userRepository.findByUsername(request.getUsername());
 
-        // 2. Jika user tidak ditemukan
         if (!userOpt.isPresent()) {
             return ResponseEntity.status(404).body("Akun tidak terdaftar");
         }
 
-        // 3. Jika user ditemukan, cocokkan passwordnya
         User user = userOpt.get();
         if (user.getPasswordHash().equals(request.getPassword())) {
-            // Berhasil login, kirimkan User ID untuk dipakai di game LibGDX
+
             return ResponseEntity.ok("Login sukses! UserID: " + user.getUserId());
         }
 
-        // Jika password salah
         return ResponseEntity.status(401).body("Password salah");
     }
 }

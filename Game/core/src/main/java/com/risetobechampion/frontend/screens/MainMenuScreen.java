@@ -27,6 +27,7 @@ public class MainMenuScreen implements Screen {
     private Texture localTex;
     private Texture optionsTex;
     private Texture exitTex;
+    private com.risetobechampion.frontend.game.input.UiControllerNavigator uiNavigator;
 
     public MainMenuScreen() {
         viewport = new FitViewport(1280f, 720f);
@@ -34,20 +35,17 @@ public class MainMenuScreen implements Screen {
         Gdx.input.setInputProcessor(stage);
         UiViewportScaler.syncNow(viewport, 1280f, 720f, 0.9f);
 
-        // Initialize batch and load background texture
         batch = new SpriteBatch();
         backgroundTexture = new Texture(Gdx.files.internal("Looks/main-menu.png"));
         backgroundRegion = new TextureRegion(backgroundTexture);
 
         skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
 
-        // Membuat layout utama
         Table mainTable = new Table();
         mainTable.setFillParent(true);
-        // Menggeser isi menu lebih ke bawah agar tidak menutupi teks pada background
+
         mainTable.left().padLeft(50).top().padTop(380f);
 
-        // --- MEMBUAT ELEMEN UI ---
         storyTex = new Texture(Gdx.files.internal("button/story-mode.png"));
         localTex = new Texture(Gdx.files.internal("button/local-multiplayer.png"));
         optionsTex = new Texture(Gdx.files.internal("button/Options.png"));
@@ -58,65 +56,77 @@ public class MainMenuScreen implements Screen {
         ImageButton optionsBtn = new ImageButton(new TextureRegionDrawable(new TextureRegion(optionsTex)));
         ImageButton exitBtn = new ImageButton(new TextureRegionDrawable(new TextureRegion(exitTex)));
 
-        // --- MENYUSUN TATA LETAK ---
-        // .width() dan .height() disesuaikan dengan asset
         mainTable.add(storyBtn).width(250).height(60).padBottom(5).row();
         mainTable.add(localMatchBtn).width(250).height(60).padBottom(5).row();
         mainTable.add(optionsBtn).width(250).height(60).padBottom(5).row();
         mainTable.add(exitBtn).width(250).height(60).row();
 
-        // Memberikan aksi pada tombol Options untuk membuka OptionsScreen
         optionsBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
             @Override
             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
+                // ganti page
                 ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new OptionsScreen((com.risetobechampion.frontend.Main) Gdx.app.getApplicationListener()));
             }
         });
 
-        // Memberikan aksi pada tombol Exit agar bisa menutup game
         exitBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
             @Override
             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
                 Gdx.app.exit();
             }
         });
-        // Memberikan aksi pada tombol Story Mode untuk pindah layar
+
         storyBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
             @Override
             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
                 com.risetobechampion.frontend.utils.SessionManager.getInstance().setLocalMultiplayer(false);
+                // ganti page
                 ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new StoryModeScreen());
             }
         });
 
-        // Memberikan aksi pada tombol Local Multiplayer
         localMatchBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
             @Override
             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
                 com.risetobechampion.frontend.utils.SessionManager.getInstance().setLocalMultiplayer(true);
+                // ganti page
                 ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new LocalMultiplayerCharSelectScreen());
             }
         });
 
         stage.addActor(mainTable);
+        
+        uiNavigator = new com.risetobechampion.frontend.game.input.UiControllerNavigator();
+        uiNavigator.addButton(storyBtn);
+        uiNavigator.addButton(localMatchBtn);
+        uiNavigator.addButton(optionsBtn);
+        uiNavigator.addButton(exitBtn);
     }
 
     @Override
-    public void show() {}
+    public void show() {
+        // putar lagu menu
+        com.risetobechampion.frontend.utils.AudioManager.getInstance().playMainMusic();
+    }
 
     @Override
     public void render(float delta) {
         Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        // Draw background image across the full window area
         batch.setProjectionMatrix(new com.badlogic.gdx.math.Matrix4().setToOrtho2D(0f, 0f, Gdx.graphics.getWidth(), Gdx.graphics.getHeight()));
         batch.begin();
         drawBackgroundScaled(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         batch.end();
 
         stage.act(delta);
+        // render karakter/gambar
         stage.draw();
+        
+        if (uiNavigator != null) {
+            // update status secara berkala
+            uiNavigator.update();
+        }
     }
 
     private void drawBackgroundScaled(float screenWidth, float screenHeight) {
@@ -125,32 +135,32 @@ public class MainMenuScreen implements Screen {
         float imageWidth = backgroundTexture.getWidth();
         float imageHeight = backgroundTexture.getHeight();
 
-        // Calculate aspect ratios
         float viewportAspect = screenWidth / screenHeight;
         float imageAspect = imageWidth / imageHeight;
 
         float drawWidth, drawHeight, drawX, drawY;
 
-        // Scale to cover viewport while maintaining aspect ratio
         if (imageAspect > viewportAspect) {
-            // Image is wider - scale by height
+
             drawHeight = screenHeight;
             drawWidth = screenHeight * imageAspect;
             drawX = (screenWidth - drawWidth) / 2f;
             drawY = 0;
         } else {
-            // Image is taller - scale by width
+
             drawWidth = screenWidth;
             drawHeight = screenWidth / imageAspect;
             drawX = 0;
             drawY = (screenHeight - drawHeight) / 2f;
         }
 
+        // render karakter/gambar
         batch.draw(backgroundRegion, drawX, drawY, drawWidth, drawHeight);
     }
 
     @Override
     public void resize(int width, int height) {
+        // update status secara berkala
         UiViewportScaler.update(viewport, width, height, 1280f, 720f, 0.9f);
     }
 

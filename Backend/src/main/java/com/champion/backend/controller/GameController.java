@@ -27,13 +27,11 @@ public class GameController {
     @Autowired
     private UserRepository userRepository;
 
-    // API Mengambil Daftar Karakter (Lengkap dengan jurus barunya)
     @GetMapping("/characters")
     public ResponseEntity<List<GameCharacter>> getPlayerCharacters() {
         ensurePlayerCharacter("Kael", 90, "Basic Strike", 12, "Heavy Slash", 28, "Ultimate Skill", 50);
         ensurePlayerCharacter("Ryu", 105, "Hadoken", 9, "Shun Goku Satsu", 22, "Ryu's Fury", 40);
 
-        // Tolerate historical data that may store type with different case/spacing.
         List<GameCharacter> players = characterRepository.findAll().stream()
             .filter(c -> c.getType() != null)
             .filter(c -> "PLAYER".equalsIgnoreCase(c.getType().trim()))
@@ -75,13 +73,15 @@ public class GameController {
         character.setHeavyAttackDmg(heavyAttackDmg);
         character.setSpecialAttackName(specialAttackName);
         character.setSpecialAttackDmg(specialAttackDmg);
+        // simpan ke db
         characterRepository.save(character);
     }
 
-    // API Memulai Game
     @PostMapping("/start")
     public ResponseEntity<String> startNewGame(@RequestBody NewGameRequest request) {
+        // ambil data dari db
         Optional<User> userOpt = userRepository.findById(request.getUserId());
+        // ambil data dari db
         Optional<GameCharacter> charOpt = characterRepository.findById(request.getCharId());
 
         if (userOpt.isEmpty() || charOpt.isEmpty()) {
@@ -92,21 +92,23 @@ public class GameController {
         if (existingRun.isPresent()) {
             GameRun oldRun = existingRun.get();
             oldRun.setStatus("GAME_OVER");
+            // simpan ke db
             runRepository.save(oldRun);
         }
 
         GameRun newRun = new GameRun();
         newRun.setUser(userOpt.get());
         newRun.setCharacter(charOpt.get());
+        // simpan ke db
         runRepository.save(newRun);
 
         return ResponseEntity.ok("Game Baru Dimulai! RunID: " + newRun.getRunId());
     }
-    // 3. Endpoint untuk menyimpan progress (Save Game / Update Buff)
-    // POST http://localhost:8080/api/game/save
+
     @PostMapping("/save")
     public ResponseEntity<String> saveProgress(@RequestBody com.champion.backend.dto.SaveProgressRequest request) {
-        // Cari sesi game (run) berdasarkan ID yang dikirim
+
+        // ambil data dari db
         Optional<GameRun> runOpt = runRepository.findById(request.getRunId());
 
         if (runOpt.isEmpty()) {
@@ -115,27 +117,23 @@ public class GameController {
 
         GameRun currentRun = runOpt.get();
 
-        // Update progress umum
         currentRun.setCurrentStage(request.getCurrentStage());
         currentRun.setDeathCount(request.getDeathCount());
         currentRun.setTimeElapsed(request.getTimeElapsed());
         currentRun.setStatus(request.getStatus());
 
-        // Update status Buff
         currentRun.setBonusMaxHp(request.getBonusMaxHp());
         currentRun.setBonusBasicDmg(request.getBonusBasicDmg());
         currentRun.setBonusSkillDmg(request.getBonusSkillDmg());
         currentRun.setBonusMaxEnergy(request.getBonusMaxEnergy());
         currentRun.setHasMidbossSkill(request.isHasMidbossSkill());
 
-        // Simpan pembaruan ke database
+        // simpan ke db
         runRepository.save(currentRun);
 
         return ResponseEntity.ok("Progress dan Buff berhasil disimpan!");
     }
 
-    // API untuk mengambil progress aktif user agar bisa lanjut setelah login ulang
-    // GET http://localhost:8080/api/game/progress/{userId}
     @GetMapping("/progress/{userId}")
     public ResponseEntity<GameProgressResponse> getActiveProgress(@PathVariable java.util.UUID userId) {
         Optional<GameRun> runOpt = runRepository.findByUser_UserIdAndStatus(userId, "ONGOING");

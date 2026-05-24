@@ -9,7 +9,6 @@ public class SaveProgressRequest {
     private int timeElapsed;
     private String status; // "ONGOING", "COMPLETED", atau "GAME_OVER"
 
-    // --- Data Buff Stat ---
     private int bonusMaxHp;
     private int bonusBasicDmg;
     private int bonusSkillDmg;
@@ -96,6 +95,4 @@ public class SaveProgressRequest {
         this.hasMidbossSkill = hasMidbossSkill;
     }
 
-    // SANGAT PENTING: Tekan Alt+Insert untuk men-generate
-    // Getter dan Setter untuk SEMUA variabel di atas!
 }

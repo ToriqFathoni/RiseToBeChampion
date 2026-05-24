@@ -42,7 +42,8 @@ public class AggressiveAi implements AiStrategy {
 
         if (absDistance > APPROACH_DISTANCE) {
             if (absDistance >= TAUNT_DISTANCE && tauntCooldown <= 0f && Math.random() > 0.65d) {
-                self.setState(EntityState.TAUNT);
+                self.setActionState(ActionState.TAUNT);
+                // tulis log pertarungan
                 logger.log(self.getName() + " menantang dari jarak jauh!");
                 tauntCooldown = 4.0f;
                 return;
@@ -51,6 +52,7 @@ public class AggressiveAi implements AiStrategy {
             self.getVelocity().x = distance > 0f ? 200f : -200f;
             if (self.isGrounded() && absDistance < JUMP_DISTANCE && Math.random() > 0.985d) {
                 self.jump(720f);
+                // tulis log pertarungan
                 logger.log(self.getName() + " melompat!");
                 return;
             }
@@ -58,7 +60,7 @@ public class AggressiveAi implements AiStrategy {
         }
 
         if (defendCooldown <= 0f && (self.getHp() <= self.getMaxHp() * 0.35f || (absDistance <= DEFEND_DISTANCE && Math.random() > 0.78d))) {
-            self.performAction(null, EntityState.DEFEND, 0, logger);
+            self.performAction(null, ActionState.DEFEND, 0, logger);
             defendCooldown = DEFEND_COOLDOWN;
             return;
         }
@@ -69,14 +71,14 @@ public class AggressiveAi implements AiStrategy {
 
         double targetHpRatio = target.getMaxHp() <= 0 ? 1.0d : (double) target.getHp() / (double) target.getMaxHp();
         double random = Math.random();
-        if (self.getEnergyCost(EntityState.SKILL) <= self.getEnergy() && targetHpRatio <= 0.45d && random > 0.6d) {
-            self.performAction(target, EntityState.SKILL, skillDamage, logger);
+        if (self.getEnergyCost(ActionState.SKILL) <= self.getEnergy() && targetHpRatio <= 0.45d && random > 0.6d) {
+            self.performAction(target, ActionState.SKILL, skillDamage, logger);
             attackCooldown = 1.9f;
-        } else if (self.getEnergyCost(EntityState.ATTACK_HEAVY) <= self.getEnergy() && (absDistance <= 120f || targetHpRatio <= 0.65d || random > 0.55d)) {
-            self.performAction(target, EntityState.ATTACK_HEAVY, heavyDamage, logger);
+        } else if (self.getEnergyCost(ActionState.ATTACK_HEAVY) <= self.getEnergy() && (absDistance <= 120f || targetHpRatio <= 0.65d || random > 0.55d)) {
+            self.performAction(target, ActionState.ATTACK_HEAVY, heavyDamage, logger);
             attackCooldown = 1.6f;
-        } else if (self.getEnergyCost(EntityState.ATTACK_BASIC) <= self.getEnergy()) {
-            self.performAction(target, EntityState.ATTACK_BASIC, basicDamage, logger);
+        } else if (self.getEnergyCost(ActionState.ATTACK_BASIC) <= self.getEnergy()) {
+            self.performAction(target, ActionState.ATTACK_BASIC, basicDamage, logger);
             attackCooldown = 1.1f;
         }
     }

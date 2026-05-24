@@ -14,20 +14,17 @@ import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.risetobechampion.frontend.Main;
 import com.risetobechampion.frontend.screens.MainMenuScreen;
 
-/**
- * Reusable Pause Menu component for Battle Screens.
- */
 public class PauseMenu {
     private final Table pauseRoot;
     private com.badlogic.gdx.graphics.Texture resumeTex;
     private com.badlogic.gdx.graphics.Texture quitTex;
+    private com.risetobechampion.frontend.game.input.UiControllerNavigator uiNavigator;
 
     public PauseMenu(Stage stage, Skin skin, Main game, Runnable onResume) {
         pauseRoot = new Table();
         pauseRoot.setFillParent(true);
         pauseRoot.setVisible(false);
 
-        // Semi-transparent background using Pixmap
         com.badlogic.gdx.graphics.Pixmap dimPixmap = new com.badlogic.gdx.graphics.Pixmap(1, 1, com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
         dimPixmap.setColor(0f, 0f, 0f, 0.6f);
         dimPixmap.fill();
@@ -55,9 +52,9 @@ public class PauseMenu {
 
         resumeTex = new com.badlogic.gdx.graphics.Texture(Gdx.files.internal("button/continue.png"));
         ImageButton resumeBtn = new ImageButton(new TextureRegionDrawable(new com.badlogic.gdx.graphics.g2d.TextureRegion(resumeTex)));
-        resumeBtn.addListener(new ClickListener() {
+        resumeBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
             @Override
-            public void clicked(InputEvent event, float x, float y) {
+            public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
                 if (onResume != null) {
                     onResume.run();
                 }
@@ -68,15 +65,20 @@ public class PauseMenu {
 
         quitTex = new com.badlogic.gdx.graphics.Texture(Gdx.files.internal("button/back-to-main-menu.png"));
         ImageButton quitBtn = new ImageButton(new TextureRegionDrawable(new com.badlogic.gdx.graphics.g2d.TextureRegion(quitTex)));
-        quitBtn.addListener(new ClickListener() {
+        quitBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
             @Override
-            public void clicked(InputEvent event, float x, float y) {
+            public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
+                // ganti page
                 game.setScreen(new MainMenuScreen());
             }
         });
         contentTable.add(quitBtn).width(200f).height(60f).row();
 
         stage.addActor(pauseRoot);
+
+        uiNavigator = new com.risetobechampion.frontend.game.input.UiControllerNavigator();
+        uiNavigator.addButton(resumeBtn);
+        uiNavigator.addButton(quitBtn);
     }
 
     public void setVisible(boolean visible) {
@@ -85,6 +87,14 @@ public class PauseMenu {
 
     public boolean isVisible() {
         return pauseRoot.isVisible();
+    }
+
+    // update status secara berkala
+    public void update() {
+        if (isVisible() && uiNavigator != null) {
+            // update status secara berkala
+            uiNavigator.update();
+        }
     }
 
     public void dispose() {

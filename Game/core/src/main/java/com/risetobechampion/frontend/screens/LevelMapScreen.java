@@ -21,6 +21,7 @@ public class LevelMapScreen implements Screen {
     private final Viewport viewport;
     private Texture backgroundTexture;
     private Texture enterBattleTex;
+    private com.risetobechampion.frontend.game.input.UiControllerNavigator uiNavigator;
 
     public LevelMapScreen() {
         viewport = new FitViewport(1280f, 720f);
@@ -34,7 +35,6 @@ public class LevelMapScreen implements Screen {
         rootTable.setFillParent(true);
         stage.addActor(rootTable);
 
-        // Membaca level saat ini dari SessionManager
         int stageSaatIni = com.risetobechampion.frontend.utils.SessionManager.getInstance().getCurrentStage();
 
         int bgStage = Math.max(1, Math.min(4, stageSaatIni));
@@ -44,38 +44,48 @@ public class LevelMapScreen implements Screen {
         enterBattleTex = new Texture(Gdx.files.internal("button/enter-battle-arena.png"));
         ImageButton enterBattleBtn = new ImageButton(new TextureRegionDrawable(new TextureRegion(enterBattleTex)));
 
-        // --- TATA LETAK ---
         rootTable.bottom();
         rootTable.add(enterBattleBtn).width(360).height(50).padBottom(115f).row();
 
-        // --- LOGIKA TOMBOL ---
-        // --- LOGIKA TOMBOL ---
         enterBattleBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
             @Override
             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
                 System.out.println("Mempersiapkan musuh untuk Stage " + stageSaatIni + "...");
 
-                // INI ADALAH KODE KUNCI UNTUK PINDAH LAYAR:
+                // ganti page
                 ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new BattleScreen((com.risetobechampion.frontend.Main) Gdx.app.getApplicationListener()));
             }
         });
+
+        uiNavigator = new com.risetobechampion.frontend.game.input.UiControllerNavigator();
+        uiNavigator.addButton(enterBattleBtn);
     }
 
     @Override
-    public void show() {}
+    public void show() {
+        // putar lagu menu
+        com.risetobechampion.frontend.utils.AudioManager.getInstance().playMainMusic();
+    }
 
     @Override
     public void render(float delta) {
-        // Latar belakang sedikit kebiruan gelap / navy
+
         Gdx.gl.glClearColor(0.05f, 0.1f, 0.15f, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         stage.act(delta);
+        // render karakter/gambar
         stage.draw();
+
+        if (uiNavigator != null) {
+            // update status secara berkala
+            uiNavigator.update();
+        }
     }
 
     @Override
     public void resize(int width, int height) {
+        // update status secara berkala
         UiViewportScaler.update(viewport, width, height, 1280f, 720f, 0.9f);
     }
 

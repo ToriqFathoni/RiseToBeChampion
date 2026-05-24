@@ -2,7 +2,7 @@ package com.risetobechampion.frontend.command;
 
 import com.risetobechampion.frontend.combat.CombatLogger;
 import com.risetobechampion.frontend.combat.Combatant;
-import com.risetobechampion.frontend.combat.EntityState;
+import com.risetobechampion.frontend.combat.ActionState;
 
 public class SkillCommand implements Command {
     private final Combatant actor;
@@ -19,6 +19,6 @@ public class SkillCommand implements Command {
 
     @Override
     public void execute() {
-        actor.performAction(target, EntityState.SKILL, damage, logger);
+        actor.performAction(target, ActionState.SKILL, damage, logger);
     }
 }

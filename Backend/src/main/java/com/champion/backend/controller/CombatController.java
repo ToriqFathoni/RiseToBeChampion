@@ -28,19 +28,14 @@ public class CombatController {
     @Autowired
     private GameRunRepository gameRunRepository;
 
-    /**
-     * GET /api/combat/setup?stage=1
-     * Returns initial combat data for the player and the enemy for a specific stage.
-     *
-     * @param stage The stage ID
-     * @return CombatSetupResponse containing player and enemy combat data
-     */
+    
     @GetMapping("/setup")
     public ResponseEntity<CombatSetupResponse> getCombatSetup(@RequestParam int stage, @RequestParam(required = false) String runId) {
         try {
             CombatSetupResponse.PlayerCombatData playerData;
             if (runId != null && !runId.isBlank()) {
                 UUID parsedRunId = UUID.fromString(runId);
+                // ambil data dari db
                 Optional<GameRun> runOpt = gameRunRepository.findById(parsedRunId);
                 if (runOpt.isPresent() && runOpt.get().getCharacter() != null) {
                     GameCharacter selected = runOpt.get().getCharacter();
@@ -103,6 +98,7 @@ public class CombatController {
 
     private CombatSetupResponse.PlayerCombatData defaultPlayerData() {
         Player player = playerRepository.findByName("Kael The Phantom")
+            // simpan ke db
             .orElseGet(() -> playerRepository.save(new Player("Kael The Phantom", 90, 100, 10)));
         return new CombatSetupResponse.PlayerCombatData(
             player.getId(),
@@ -128,6 +124,7 @@ public class CombatController {
     private Enemy resolveEnemyForStage(int stage) {
         java.util.List<Enemy> enemies = enemyRepository.findAllByStageId(stage);
         if (enemies == null || enemies.isEmpty()) {
+            // simpan ke db
             return enemyRepository.save(defaultEnemyForStage(stage));
         }
 

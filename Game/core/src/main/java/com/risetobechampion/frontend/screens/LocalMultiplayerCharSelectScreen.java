@@ -30,6 +30,8 @@ public class LocalMultiplayerCharSelectScreen implements Screen {
     private Label p1StatusLabel;
     private Label p2StatusLabel;
     private TextButton fightButton;
+    private com.risetobechampion.frontend.game.input.UiControllerNavigator uiNavigatorP1;
+    private com.risetobechampion.frontend.game.input.UiControllerNavigator uiNavigatorP2;
 
     private final String[] CHARACTERS = {
         "Kael The Phantom", "Mr. Van", "Ryu", "Chen Long", "Kagetsu", "Joe"
@@ -54,7 +56,6 @@ public class LocalMultiplayerCharSelectScreen implements Screen {
         titleLabel.setAlignment(Align.center);
         rootTable.add(titleLabel).colspan(2).padBottom(30).row();
 
-        // Split screen layout
         Table p1Table = new Table();
         Table p2Table = new Table();
 
@@ -68,7 +69,6 @@ public class LocalMultiplayerCharSelectScreen implements Screen {
         p2Title.setColor(1f, 0.3f, 0.3f, 1f);
         p2Table.add(p2Title).padBottom(15).row();
 
-        // Create buttons for P1
         for (String charName : CHARACTERS) {
             TextButton btn = new TextButton(charName, skin);
             p1Table.add(btn).width(300).height(50).padBottom(10).row();
@@ -82,7 +82,6 @@ public class LocalMultiplayerCharSelectScreen implements Screen {
             });
         }
 
-        // Create buttons for P2
         for (String charName : CHARACTERS) {
             TextButton btn = new TextButton(charName, skin);
             p2Table.add(btn).width(300).height(50).padBottom(10).row();
@@ -111,6 +110,7 @@ public class LocalMultiplayerCharSelectScreen implements Screen {
         backBtn.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
+                // ganti page
                 ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new MainMenuScreen());
             }
         });
@@ -125,6 +125,7 @@ public class LocalMultiplayerCharSelectScreen implements Screen {
                     SessionManager.getInstance().setSelectedCharacterName(p1Selection);
                     SessionManager.getInstance().setPlayer2CharacterName(p2Selection);
                     SessionManager.getInstance().setLocalMultiplayer(true);
+                    // ganti page
                     ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new LocalMultiplayerBattleScreen());
                 }
             }
@@ -134,6 +135,33 @@ public class LocalMultiplayerCharSelectScreen implements Screen {
         bottomTable.add(fightButton).width(300).height(70);
 
         rootTable.add(bottomTable).colspan(2).padTop(40).row();
+
+        com.badlogic.gdx.controllers.Controller c1 = null;
+        com.badlogic.gdx.controllers.Controller c2 = null;
+        if (com.badlogic.gdx.controllers.Controllers.getControllers().size > 0) {
+            c1 = com.badlogic.gdx.controllers.Controllers.getControllers().get(0);
+        }
+        if (com.badlogic.gdx.controllers.Controllers.getControllers().size > 1) {
+            c2 = com.badlogic.gdx.controllers.Controllers.getControllers().get(1);
+        }
+
+        uiNavigatorP1 = new com.risetobechampion.frontend.game.input.UiControllerNavigator(c1);
+        for (com.badlogic.gdx.scenes.scene2d.Actor a : p1Table.getChildren()) {
+            if (a instanceof com.badlogic.gdx.scenes.scene2d.ui.Button) {
+                uiNavigatorP1.addButton((com.badlogic.gdx.scenes.scene2d.ui.Button) a);
+            }
+        }
+        uiNavigatorP1.addButton(backBtn);
+        uiNavigatorP1.addButton(fightButton);
+
+        uiNavigatorP2 = new com.risetobechampion.frontend.game.input.UiControllerNavigator(c2);
+        for (com.badlogic.gdx.scenes.scene2d.Actor a : p2Table.getChildren()) {
+            if (a instanceof com.badlogic.gdx.scenes.scene2d.ui.Button) {
+                uiNavigatorP2.addButton((com.badlogic.gdx.scenes.scene2d.ui.Button) a);
+            }
+        }
+        uiNavigatorP2.addButton(backBtn);
+        uiNavigatorP2.addButton(fightButton);
     }
 
     private void checkFightReady() {
@@ -144,7 +172,10 @@ public class LocalMultiplayerCharSelectScreen implements Screen {
     }
 
     @Override
-    public void show() {}
+    public void show() {
+        // putar lagu menu
+        com.risetobechampion.frontend.utils.AudioManager.getInstance().playMainMusic();
+    }
 
     @Override
     public void render(float delta) {
@@ -152,11 +183,22 @@ public class LocalMultiplayerCharSelectScreen implements Screen {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         stage.act(delta);
+        // render karakter/gambar
         stage.draw();
+
+        if (uiNavigatorP1 != null) {
+            // update status secara berkala
+            uiNavigatorP1.update();
+        }
+        if (uiNavigatorP2 != null) {
+            // update status secara berkala
+            uiNavigatorP2.update();
+        }
     }
 
     @Override
     public void resize(int width, int height) {
+        // update status secara berkala
         UiViewportScaler.update(viewport, width, height, 1280f, 720f, 0.9f);
     }
 

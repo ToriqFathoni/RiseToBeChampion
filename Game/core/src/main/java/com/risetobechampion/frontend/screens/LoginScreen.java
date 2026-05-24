@@ -33,15 +33,12 @@ public class LoginScreen implements Screen {
         Gdx.input.setInputProcessor(stage); // Agar UI bisa diklik
         UiViewportScaler.syncNow(viewport, 1280f, 720f, 0.9f);
 
-        // Initialize batch and load background texture
         batch = new SpriteBatch();
         backgroundTexture = new Texture(Gdx.files.internal("Looks/LandingPage.png"));
         backgroundRegion = new TextureRegion(backgroundTexture);
 
-        // Memuat skin bawaan (uiskin.json) dari folder assets
         skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
 
-        // Membuat layout utama menggunakan Table
         Table rootTable = new Table();
         rootTable.setFillParent(true); // Table akan memenuhi seluruh layar
         rootTable.top();
@@ -49,33 +46,27 @@ public class LoginScreen implements Screen {
 
         Table formTable = new Table();
 
-        // --- MEMBUAT ELEMEN UI ---
         usernameTex = new Texture(Gdx.files.internal("Looks/username.png"));
         passwordTex = new Texture(Gdx.files.internal("Looks/password.png"));
         loginBtnTex = new Texture(Gdx.files.internal("Looks/login-button.png"));
         registerBtnTex = new Texture(Gdx.files.internal("Looks/register-button.png"));
 
-        // Error Label
         com.badlogic.gdx.scenes.scene2d.ui.Label errorLabel = new com.badlogic.gdx.scenes.scene2d.ui.Label("", skin);
         errorLabel.setColor(1f, 0.3f, 0.3f, 1f);
         errorLabel.setFontScale(0.9f);
 
-        // Custom field style to remove default background
         com.badlogic.gdx.scenes.scene2d.ui.TextField.TextFieldStyle customFieldStyle = new com.badlogic.gdx.scenes.scene2d.ui.TextField.TextFieldStyle(skin.get(com.badlogic.gdx.scenes.scene2d.ui.TextField.TextFieldStyle.class));
         customFieldStyle.background = new com.badlogic.gdx.scenes.scene2d.utils.BaseDrawable();
         customFieldStyle.focusedBackground = new com.badlogic.gdx.scenes.scene2d.utils.BaseDrawable();
 
-        // 2. Input Username
         com.badlogic.gdx.scenes.scene2d.ui.TextField usernameField = new com.badlogic.gdx.scenes.scene2d.ui.TextField("", customFieldStyle);
         usernameField.setMessageText("Masukkan Username");
 
-        // 3. Input Password
         com.badlogic.gdx.scenes.scene2d.ui.TextField passwordField = new com.badlogic.gdx.scenes.scene2d.ui.TextField("", customFieldStyle);
         passwordField.setMessageText("Masukkan Password");
         passwordField.setPasswordMode(true);
         passwordField.setPasswordCharacter('*');
 
-        // 4. Tombol Login & Register
         com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable loginDrawable = new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(new TextureRegion(loginBtnTex));
         com.badlogic.gdx.scenes.scene2d.ui.ImageButton.ImageButtonStyle loginStyle = new com.badlogic.gdx.scenes.scene2d.ui.ImageButton.ImageButtonStyle();
         loginStyle.imageUp = loginDrawable;
@@ -87,9 +78,6 @@ public class LoginScreen implements Screen {
         registerStyle.imageUp = registerDrawable;
         registerStyle.imageDown = registerDrawable.tint(new com.badlogic.gdx.graphics.Color(0.6f, 0.6f, 0.6f, 1f));
         com.badlogic.gdx.scenes.scene2d.ui.ImageButton registerBtn = new com.badlogic.gdx.scenes.scene2d.ui.ImageButton(registerStyle);
-
-        // --- MENYUSUN TATA LETAK (GRID/TABLE) ---
-        // row() berfungsi seperti 'Enter' atau pindah ke baris bawahnya
 
         Table userContainer = new Table();
         userContainer.setBackground(new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(new TextureRegion(usernameTex)));
@@ -112,8 +100,6 @@ public class LoginScreen implements Screen {
         rootTable.add().expand();
         rootTable.row();
         rootTable.add(formTable).padBottom(10f);
-        // Nanti kita akan tambahkan kolom input dan tombol di dalam rootTable ini
-        // --- MEMBERIKAN LOGIKA PADA TOMBOL (EVENT LISTENER) ---
 
         loginBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
             @Override
@@ -123,7 +109,7 @@ public class LoginScreen implements Screen {
 
                 System.out.println("Mengirim data login ke Backend...");
 
-                // Memanggil fungsi login dari ApiClient
+                // tembak api backend
                 com.risetobechampion.frontend.network.ApiClient.login(inputUser, inputPass, new com.badlogic.gdx.Net.HttpResponseListener() {
 
                     @Override
@@ -131,26 +117,24 @@ public class LoginScreen implements Screen {
                         int statusCode = httpResponse.getStatus().getStatusCode();
                         String responseBody = httpResponse.getResultAsString();
 
-                        // WAJIB menggunakan postRunnable saat merespons jaringan agar tidak crash
                         Gdx.app.postRunnable(new Runnable() {
                             @Override
                             public void run() {
                                 if (statusCode == 200) {
                                     System.out.println("SUKSES (200): " + responseBody);
 
-                                    // --- KODE BARU: Menyimpan UserID ke SessionManager ---
                                     try {
-                                        // Mengambil teks tepat setelah kata "UserID: "
+
                                         String extractedUserId = responseBody.substring(responseBody.indexOf("UserID: ") + 8).trim();
                                         com.risetobechampion.frontend.utils.SessionManager.getInstance().setUserId(extractedUserId);
                                         System.out.println("UserID berhasil diamankan di Sesi Global: " + extractedUserId);
                                     } catch (Exception e) {
                                         System.out.println("Gagal mengekstrak UserID dari server!");
                                     }
-                                    // -----------------------------------------------------
 
                                     String storedUserId = com.risetobechampion.frontend.utils.SessionManager.getInstance().getUserId();
                                     if (storedUserId != null && !storedUserId.isEmpty()) {
+                                        // tembak api backend
                                         com.risetobechampion.frontend.network.ApiClient.getActiveProgress(storedUserId, new com.badlogic.gdx.Net.HttpResponseListener() {
                                             @Override
                                             public void handleHttpResponse(com.badlogic.gdx.Net.HttpResponse progressResponse) {
@@ -173,11 +157,12 @@ public class LoginScreen implements Screen {
                                                                 sessionManager.setDeathCount(progressJson.getInt("deathCount", 0));
                                                                 sessionManager.setTotalTimeElapsed(progressJson.getInt("timeElapsed", 0));
                                                                 System.out.println("Progress aktif dimuat dari backend.");
-                                                                    // Fetch combat setup to discover which character is associated with this run
+
                                                                     try {
                                                                         String runId = sessionManager.getRunId();
                                                                         int stage = sessionManager.getCurrentStage();
                                                                         if (runId != null && !runId.isEmpty()) {
+                                                                            // tembak api backend
                                                                             com.risetobechampion.frontend.network.ApiClient.getCombatSetup(stage, runId, new com.badlogic.gdx.Net.HttpResponseListener() {
                                                                                 @Override
                                                                                 public void handleHttpResponse(com.badlogic.gdx.Net.HttpResponse combatResponse) {
@@ -204,13 +189,14 @@ public class LoginScreen implements Screen {
                                                                             });
                                                                         }
                                                                     } catch (Exception e) {
-                                                                        // ignore
+
                                                                     }
                                                             } catch (Exception progressError) {
                                                                 progressError.printStackTrace();
                                                             }
                                                         }
 
+                                                        // ganti page
                                                         ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new MainMenuScreen());
                                                     }
                                                 });
@@ -221,6 +207,7 @@ public class LoginScreen implements Screen {
                                                 Gdx.app.postRunnable(new Runnable() {
                                                     @Override
                                                     public void run() {
+                                                        // ganti page
                                                         ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new MainMenuScreen());
                                                     }
                                                 });
@@ -231,12 +218,14 @@ public class LoginScreen implements Screen {
                                                 Gdx.app.postRunnable(new Runnable() {
                                                     @Override
                                                     public void run() {
+                                                        // ganti page
                                                         ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new MainMenuScreen());
                                                     }
                                                 });
                                             }
                                         });
                                     } else {
+                                        // ganti page
                                         ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new MainMenuScreen());
                                     }
                                 } else if (statusCode == 404) {
@@ -282,6 +271,7 @@ public class LoginScreen implements Screen {
             @Override
             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
                 System.out.println("Pindah ke layar Register...");
+                // ganti page
                 ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new RegisterScreen());
             }
         });
@@ -289,22 +279,23 @@ public class LoginScreen implements Screen {
 
     @Override
     public void show() {
+        // putar lagu menu
+        com.risetobechampion.frontend.utils.AudioManager.getInstance().playMainMusic();
     }
 
     @Override
     public void render(float delta) {
-        // Membersihkan layar dengan warna latar belakang (misal: abu-abu gelap)
+
         Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        // Draw background image across the full window area
         batch.setProjectionMatrix(new com.badlogic.gdx.math.Matrix4().setToOrtho2D(0f, 0f, Gdx.graphics.getWidth(), Gdx.graphics.getHeight()));
         batch.begin();
         drawBackgroundFullscreen(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         batch.end();
 
-        // Menggambar UI ke layar
         stage.act(delta);
+        // render karakter/gambar
         stage.draw();
     }
 
@@ -333,11 +324,13 @@ public class LoginScreen implements Screen {
             drawY = (screenHeight - drawHeight) / 2f;
         }
 
+        // render karakter/gambar
         batch.draw(backgroundRegion, drawX, drawY, drawWidth, drawHeight);
     }
 
     @Override
     public void resize(int width, int height) {
+        // update status secara berkala
         UiViewportScaler.update(viewport, width, height, 1280f, 720f, 0.9f);
     }
 

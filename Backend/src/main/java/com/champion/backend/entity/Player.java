@@ -22,7 +22,6 @@ public class Player {
     @Column(nullable = false)
     private int baseDamage;
 
-    // Constructors
     public Player() {
     }
 
@@ -33,7 +32,6 @@ public class Player {
         this.baseDamage = baseDamage;
     }
 
-    // Getters and Setters
     public Long getId() {
         return id;
     }

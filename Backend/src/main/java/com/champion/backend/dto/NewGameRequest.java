@@ -22,5 +22,4 @@ public class NewGameRequest {
         this.charId = charId;
     }
 
-    // Ingat untuk Generate Getter dan Setter di sini!
 }

@@ -24,6 +24,7 @@ public class VictoryScreen implements Screen {
 
     private Texture backgroundTexture;
     private Texture backToMenuTex;
+    private com.risetobechampion.frontend.game.input.UiControllerNavigator uiNavigator;
 
     public VictoryScreen(Main game, int deathCount, int battleTimeElapsed) {
         this.game = game;
@@ -45,7 +46,7 @@ public class VictoryScreen implements Screen {
     private void buildUI(int deathCount, int battleTimeElapsed) {
         Table root = new Table();
         root.setFillParent(true);
-        // Draw background image across the full window area (preserve aspect ratio or stretch? The previous code used stretch by TextureRegionDrawable)
+
         root.setBackground(new TextureRegionDrawable(new TextureRegion(backgroundTexture)));
         stage.addActor(root);
 
@@ -65,23 +66,24 @@ public class VictoryScreen implements Screen {
         timeLabel.setFontScale(1.3f);
         timeLabel.setAlignment(Align.left);
 
-        // Push labels to the right so they appear next to the baked text
         statsTable.add(deathLabel).padLeft(280f).padBottom(14f).row();
         statsTable.add(timeLabel).padLeft(280f).row();
 
-        // Add statsTable to contentTable, pushing it up into the User Statistics box
         contentTable.add(statsTable).padBottom(85f).row();
 
         ImageButton backMenuBtn = new ImageButton(new TextureRegionDrawable(new TextureRegion(backToMenuTex)));
         backMenuBtn.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
+                // ganti page
                 game.setScreen(new MainMenuScreen());
             }
         });
 
-        // Add button at the bottom
         contentTable.add(backMenuBtn).width(300f).height(60f).padBottom(45f);
+
+        uiNavigator = new com.risetobechampion.frontend.game.input.UiControllerNavigator();
+        uiNavigator.addButton(backMenuBtn);
     }
 
     @Override
@@ -90,15 +92,25 @@ public class VictoryScreen implements Screen {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         stage.act(delta);
+        // render karakter/gambar
         stage.draw();
+
+        if (uiNavigator != null) {
+            // update status secara berkala
+            uiNavigator.update();
+        }
     }
 
     @Override
     public void resize(int width, int height) {
+        // update status secara berkala
         stage.getViewport().update(width, height, true);
     }
 
-    @Override public void show() {}
+    @Override
+    public void show() {
+        com.risetobechampion.frontend.utils.AudioManager.getInstance().playVictoryMusic();
+    }
     @Override public void pause() {}
     @Override public void resume() {}
     @Override public void hide() {}

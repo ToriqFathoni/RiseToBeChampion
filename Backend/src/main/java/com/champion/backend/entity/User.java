@@ -53,6 +53,4 @@ public class User {
         this.createdAt = createdAt;
     }
 
-    // Tips: Tekan Alt+Insert (Windows) atau Cmd+N (Mac) di dalam class ini
-    // lalu pilih "Getter and Setter" untuk men-generate otomatis semuanya.
 }

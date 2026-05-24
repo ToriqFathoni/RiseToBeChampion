@@ -1,7 +1,7 @@
 package com.risetobechampion.frontend.combat;
 
 public final class AnimationSpec {
-    private final EntityState state;
+    private final String state;
     private final String path;
     private final int frameWidth;
     private final int columns;
@@ -9,7 +9,7 @@ public final class AnimationSpec {
     private final boolean loop;
     private final float scale;
 
-    private AnimationSpec(EntityState state, String path, int frameWidth, int columns, float frameDuration, boolean loop, float scale) {
+    private AnimationSpec(String state, String path, int frameWidth, int columns, float frameDuration, boolean loop, float scale) {
         this.state = state;
         this.path = path;
         this.frameWidth = frameWidth;
@@ -19,11 +19,11 @@ public final class AnimationSpec {
         this.scale = scale;
     }
 
-    public static AnimationSpec of(EntityState state, String path, int frameWidth, int columns, float frameDuration, boolean loop, float scale) {
+    public static AnimationSpec of(String state, String path, int frameWidth, int columns, float frameDuration, boolean loop, float scale) {
         return new AnimationSpec(state, path, frameWidth, columns, frameDuration, loop, scale);
     }
 
-    public EntityState getState() {
+    public String getState() {
         return state;
     }
 

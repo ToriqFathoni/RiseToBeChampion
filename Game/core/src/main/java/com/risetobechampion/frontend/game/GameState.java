@@ -2,7 +2,6 @@ package com.risetobechampion.frontend.game;
 
 import com.risetobechampion.frontend.combat.Combatant;
 
-/** Simple singleton holding current game combat references. */
 public class GameState {
     private static final GameState INSTANCE = new GameState();
 

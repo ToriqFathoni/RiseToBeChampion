@@ -18,7 +18,6 @@ public class GameCharacter {
     @Column(nullable = false)
     private String type; // "PLAYER" atau "ENEMY"
 
-    // --- Variasi Serangan ---
     private String lightAttackName;
     private int lightAttackDmg;
 
@@ -107,6 +106,5 @@ public class GameCharacter {
     public void setSpecialAttackDmg(int specialAttackDmg) {
         this.specialAttackDmg = specialAttackDmg;
     }
-// PENTING: Karena kita mengubah variabel, hapus Getter/Setter yang lama di bagian bawah class ini,
-    // lalu tekan Alt+Insert untuk men-generate ulang Getter dan Setter yang baru!
+
 }

@@ -2,10 +2,6 @@ package com.risetobechampion.frontend.game;
 
 import com.risetobechampion.frontend.combat.Combatant;
 
-/**
- * Handles all physics and collision logic for the battle screen.
- * This ensures High Cohesion by removing math and boundary calculations from the Screen class.
- */
 public class PhysicsSystem {
     private final float floorY;
     private final float gravity;
@@ -24,14 +20,12 @@ public class PhysicsSystem {
     }
 
     public void updatePhysics(Combatant p1, Combatant p2, float delta) {
-        // Apply individual physics (velocity, gravity)
+
         p1.applyPhysics(delta, gravity, floorY);
         p2.applyPhysics(delta, gravity, floorY);
 
-        // Resolve collisions between the two entities
         resolveCollision(p1, p2);
 
-        // Ensure players stay within world bounds
         clampToBounds(p1);
         clampToBounds(p2);
     }

@@ -2,7 +2,7 @@ package com.risetobechampion.frontend.command;
 
 import com.risetobechampion.frontend.combat.CombatLogger;
 import com.risetobechampion.frontend.combat.Combatant;
-import com.risetobechampion.frontend.combat.EntityState;
+import com.risetobechampion.frontend.combat.ActionState;
 
 public class UltimateCommand implements Command {
     private final Combatant executor;
@@ -19,6 +19,6 @@ public class UltimateCommand implements Command {
 
     @Override
     public void execute() {
-        executor.performAction(target, EntityState.ULTIMATE, damage, logger);
+        executor.performAction(target, ActionState.ULTIMATE, damage, logger);
     }
 }

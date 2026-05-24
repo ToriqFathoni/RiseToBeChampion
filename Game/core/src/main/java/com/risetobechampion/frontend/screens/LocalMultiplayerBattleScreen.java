@@ -35,10 +35,6 @@ import com.risetobechampion.frontend.screens.ui.PauseMenu;
 import com.badlogic.gdx.Net;
 import com.badlogic.gdx.net.HttpResponseHeader;
 
-/**
- * Refactored LocalMultiplayerBattleScreen.
- * Utilizes PhysicsSystem, PlayerInputController, and BattleHUD to achieve High Cohesion and Low Coupling.
- */
 public class LocalMultiplayerBattleScreen implements Screen, CombatLogger, CombatantObserver {
     private static final float WORLD_WIDTH = 1280f;
     private static final float WORLD_HEIGHT = 720f;
@@ -62,13 +58,14 @@ public class LocalMultiplayerBattleScreen implements Screen, CombatLogger, Comba
     private boolean isGameOver = false;
     private boolean isPaused = false;
 
-    // Systems
     private PhysicsSystem physicsSystem;
     private PlayerInputController p1InputController;
     private PlayerInputController p2InputController;
     private BattleHUD hud;
     private PauseMenu pauseMenu;
     private Table victoryOverlay;
+    private com.risetobechampion.frontend.game.input.UiControllerNavigator uiNavigator;
+    private boolean prevStartBtn;
 
     public LocalMultiplayerBattleScreen() {
         batch = new SpriteBatch();
@@ -103,6 +100,7 @@ public class LocalMultiplayerBattleScreen implements Screen, CombatLogger, Comba
         loadingTable.add(new Label("Loading characters...", skin)).center();
         stage.addActor(loadingTable);
 
+        // tembak api backend
         ApiClient.getCharacters(new Net.HttpResponseListener() {
             @Override
             public void handleHttpResponse(Net.HttpResponse httpResponse) {
@@ -254,22 +252,33 @@ public class LocalMultiplayerBattleScreen implements Screen, CombatLogger, Comba
         if (isLoading) {
             uiViewport.apply();
             stage.act(delta);
+            // render karakter/gambar
             stage.draw();
             return;
         }
 
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+        boolean startBtn = com.badlogic.gdx.controllers.Controllers.getControllers().size > 0 && com.badlogic.gdx.controllers.Controllers.getControllers().get(0).getButton(com.badlogic.gdx.controllers.Controllers.getControllers().get(0).getMapping().buttonStart);
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || (startBtn && !prevStartBtn)) {
             togglePause();
         }
+        prevStartBtn = startBtn;
 
-        if (!isPaused && !isGameOver) {
+        if (isPaused) {
+            // update status secara berkala
+            pauseMenu.update();
+        } else if (!isGameOver) {
+            // baca input tombol
             p1InputController.handleInput(player1, player2, this);
+            // baca input tombol
             p2InputController.handleInput(player2, player1, this);
 
+            // update status secara berkala
             player1.update(delta, player2, this);
+            // update status secara berkala
             player2.update(delta, player1, this);
             
             physicsSystem.updatePhysics(player1, player2, delta);
+            // update status secara berkala
             hud.update(delta);
 
             if (player1.getHp() <= 0 && player2.getHp() <= 0) {
@@ -282,19 +291,29 @@ public class LocalMultiplayerBattleScreen implements Screen, CombatLogger, Comba
         }
 
         worldViewport.apply();
+        // update status secara berkala
         camera.update();
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
         if (stageBackgroundTexture != null) {
+            // render karakter/gambar
             batch.draw(stageBackgroundTexture, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
         }
+        // render karakter/gambar
         player1.draw(batch);
+        // render karakter/gambar
         player2.draw(batch);
         batch.end();
 
         uiViewport.apply();
         stage.act(isPaused ? 0f : delta);
+        // render karakter/gambar
         stage.draw();
+        
+        if (isGameOver && uiNavigator != null) {
+            // update status secara berkala
+            uiNavigator.update();
+        }
     }
 
     private void showVictory(String message) {
@@ -320,13 +339,17 @@ public class LocalMultiplayerBattleScreen implements Screen, CombatLogger, Comba
         content.add(winLabel).padBottom(40f).row();
 
         TextButton backBtn = new TextButton("Back to Menu", skin);
-        backBtn.addListener(new ClickListener() {
+        backBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
             @Override
-            public void clicked(InputEvent event, float x, float y) {
+            public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
+                // ganti page
                 ((Main) Gdx.app.getApplicationListener()).setScreen(new MainMenuScreen());
             }
         });
         content.add(backBtn).width(250f).height(60f);
+
+        uiNavigator = new com.risetobechampion.frontend.game.input.UiControllerNavigator();
+        uiNavigator.addButton(backBtn);
 
         stage.addActor(victoryOverlay);
     }
@@ -369,7 +392,9 @@ public class LocalMultiplayerBattleScreen implements Screen, CombatLogger, Comba
 
     @Override
     public void resize(int width, int height) {
+        // update status secara berkala
         worldViewport.update(width, height, true);
+        // update status secara berkala
         uiViewport.update(width, height, true);
         UiViewportScaler.syncNow(uiViewport, WORLD_WIDTH, WORLD_HEIGHT, 0.9f);
     }
@@ -382,7 +407,11 @@ public class LocalMultiplayerBattleScreen implements Screen, CombatLogger, Comba
         if (stageBackgroundTexture != null) stageBackgroundTexture.dispose();
     }
 
-    @Override public void show() {}
+    @Override
+    public void show() {
+        // putar lagu berantem
+        com.risetobechampion.frontend.utils.AudioManager.getInstance().playFightMusic();
+    }
     @Override public void pause() {}
     @Override public void resume() {}
     @Override public void hide() {}

@@ -35,6 +35,7 @@ public class StoryModeScreen implements Screen {
     private Texture newGameTex;
     private Texture continueTex;
     private Texture backTex;
+    private com.risetobechampion.frontend.game.input.UiControllerNavigator uiNavigator;
 
     public StoryModeScreen() {
         viewport = new FitViewport(1280f, 720f);
@@ -42,7 +43,6 @@ public class StoryModeScreen implements Screen {
         Gdx.input.setInputProcessor(stage);
         UiViewportScaler.syncNow(viewport, 1280f, 720f, 0.9f);
 
-        // Initialize batch and load background texture
         batch = new SpriteBatch();
         backgroundTexture = new Texture(Gdx.files.internal("Looks/main-menu.png"));
         backgroundRegion = new TextureRegion(backgroundTexture);
@@ -95,6 +95,7 @@ public class StoryModeScreen implements Screen {
                     showNewGameWarning();
                 } else {
                     com.risetobechampion.frontend.utils.SessionManager.getInstance().resetRunProgress();
+                    // ganti page
                     ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new CharacterSelectScreen());
                 }
             }
@@ -104,6 +105,7 @@ public class StoryModeScreen implements Screen {
             @Override
             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
                 if (sessionManager.getRunId() != null && !sessionManager.getRunId().isEmpty()) {
+                    // ganti page
                     ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new LevelMapScreen());
                 } else {
                     showNoProgressDialog();
@@ -114,9 +116,17 @@ public class StoryModeScreen implements Screen {
         backBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
             @Override
             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
+                // ganti page
                 ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new MainMenuScreen());
             }
         });
+
+        uiNavigator = new com.risetobechampion.frontend.game.input.UiControllerNavigator();
+        uiNavigator.addButton(newGameBtn);
+        if (!continueBtn.isDisabled()) {
+            uiNavigator.addButton(continueBtn);
+        }
+        uiNavigator.addButton(backBtn);
 
         stage.addActor(mainTable);
     }
@@ -127,6 +137,7 @@ public class StoryModeScreen implements Screen {
             protected void result(Object object) {
                 if ("continue".equals(object)) {
                     com.risetobechampion.frontend.utils.SessionManager.getInstance().resetRunProgress();
+                    // ganti page
                     ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new CharacterSelectScreen());
                 }
             }
@@ -150,6 +161,13 @@ public class StoryModeScreen implements Screen {
         dialog.setSize(DIALOG_WIDTH, 220f);
         dialog.setPosition((1280f - DIALOG_WIDTH) * 0.5f, (720f - 220f) * 0.5f);
         dialog.key(com.badlogic.gdx.Input.Keys.ESCAPE, false);
+
+        uiNavigator = new com.risetobechampion.frontend.game.input.UiControllerNavigator();
+        for (com.badlogic.gdx.scenes.scene2d.Actor a : dialog.getButtonTable().getChildren()) {
+            if (a instanceof com.badlogic.gdx.scenes.scene2d.ui.Button) {
+                uiNavigator.addButton((com.badlogic.gdx.scenes.scene2d.ui.Button) a);
+            }
+        }
     }
 
     private void showNoProgressDialog() {
@@ -179,6 +197,9 @@ public class StoryModeScreen implements Screen {
         dialog.show(stage);
         dialog.setSize(DIALOG_WIDTH, 180f);
         dialog.setPosition((1280f - DIALOG_WIDTH) * 0.5f, (720f - 180f) * 0.5f);
+
+        uiNavigator = new com.risetobechampion.frontend.game.input.UiControllerNavigator();
+        uiNavigator.addButton(okButton);
     }
 
     private boolean hasSavedProgress() {
@@ -187,21 +208,29 @@ public class StoryModeScreen implements Screen {
     }
 
     @Override
-    public void show() {}
+    public void show() {
+        // putar lagu menu
+        com.risetobechampion.frontend.utils.AudioManager.getInstance().playMainMusic();
+    }
 
     @Override
     public void render(float delta) {
         Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        // Draw background image across the full window area
         batch.setProjectionMatrix(new Matrix4().setToOrtho2D(0f, 0f, Gdx.graphics.getWidth(), Gdx.graphics.getHeight()));
         batch.begin();
         drawBackgroundFullscreen(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         batch.end();
 
         stage.act(delta);
+        // render karakter/gambar
         stage.draw();
+
+        if (uiNavigator != null) {
+            // update status secara berkala
+            uiNavigator.update();
+        }
     }
 
     private void drawBackgroundFullscreen(float screenWidth, float screenHeight) {
@@ -229,11 +258,13 @@ public class StoryModeScreen implements Screen {
             drawY = (screenHeight - drawHeight) / 2f;
         }
 
+        // render karakter/gambar
         batch.draw(backgroundRegion, drawX, drawY, drawWidth, drawHeight);
     }
 
     @Override
     public void resize(int width, int height) {
+        // update status secara berkala
         UiViewportScaler.update(viewport, width, height, 1280f, 720f, 0.9f);
     }
 

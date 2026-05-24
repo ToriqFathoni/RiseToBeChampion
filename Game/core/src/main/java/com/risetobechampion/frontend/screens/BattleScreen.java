@@ -62,6 +62,8 @@ public class BattleScreen implements Screen, CombatLogger, CombatantObserver {
     private Texture tryAgainTex;
     private Texture backMenuTex;
     private Texture losePopupTex;
+    private com.risetobechampion.frontend.game.input.UiControllerNavigator uiNavigator;
+    private boolean prevStartBtn;
 
     private int currentStage;
     private int deathCount;
@@ -114,6 +116,7 @@ public class BattleScreen implements Screen, CombatLogger, CombatantObserver {
         stage.addActor(loadingTable);
 
         String runId = SessionManager.getInstance().getRunId();
+        // tembak api backend
         ApiClient.getCombatSetup(currentStage, runId, new Net.HttpResponseListener() {
             @Override
             public void handleHttpResponse(Net.HttpResponse httpResponse) {
@@ -156,8 +159,14 @@ public class BattleScreen implements Screen, CombatLogger, CombatantObserver {
     }
 
     private void setupCombatants(JsonValue playerData, JsonValue enemyData) {
-        String pName = SessionManager.getInstance().getSelectedCharacterName();
-        if (pName == null) pName = playerData != null ? playerData.getString("name", "Kael The Phantom") : "Kael The Phantom";
+        String pName = null;
+        if (playerData != null && playerData.has("name")) {
+            pName = playerData.getString("name");
+            SessionManager.getInstance().setSelectedCharacterName(pName);
+        } else {
+            pName = SessionManager.getInstance().getSelectedCharacterName();
+            if (pName == null) pName = "Kael The Phantom";
+        }
 
         int pHp = playerData != null ? playerData.getInt("maxHp", 100) : 100;
         characterBaseAttack1 = playerData != null ? playerData.getInt("basicAttackDamage", 15) : 15;
@@ -268,42 +277,62 @@ public class BattleScreen implements Screen, CombatLogger, CombatantObserver {
         if (isLoading) {
             uiViewport.apply();
             stage.act(delta);
+            // render karakter/gambar
             stage.draw();
             return;
         }
 
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+        boolean startBtn = com.badlogic.gdx.controllers.Controllers.getControllers().size > 0 && com.badlogic.gdx.controllers.Controllers.getControllers().get(0).getButton(com.badlogic.gdx.controllers.Controllers.getControllers().get(0).getMapping().buttonStart);
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || (startBtn && !prevStartBtn)) {
             togglePause();
         }
+        prevStartBtn = startBtn;
 
-        if (!isPaused && !isGameOver) {
+        if (isPaused) {
+            // update status secara berkala
+            pauseMenu.update();
+        } else if (!isGameOver) {
             battleTimeElapsed += delta;
 
+            // baca input tombol
             playerInputController.handleInput(player, enemy, this);
             
+            // update status secara berkala
             player.update(delta, enemy, this);
+            // update status secara berkala
             enemy.update(delta, player, this);
             
             physicsSystem.updatePhysics(player, enemy, delta);
+            // update status secara berkala
             hud.update(delta);
 
             checkGameOver();
         }
 
         worldViewport.apply();
+        // update status secara berkala
         camera.update();
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
         if (stageBackgroundTexture != null) {
+            // render karakter/gambar
             batch.draw(stageBackgroundTexture, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
         }
+        // render karakter/gambar
         player.draw(batch);
+        // render karakter/gambar
         enemy.draw(batch);
         batch.end();
 
         uiViewport.apply();
         stage.act(isPaused ? 0f : delta);
+        // render karakter/gambar
         stage.draw();
+
+        if (isGameOver && uiNavigator != null) {
+            // update status secara berkala
+            uiNavigator.update();
+        }
     }
 
     private void checkGameOver() {
@@ -311,17 +340,18 @@ public class BattleScreen implements Screen, CombatLogger, CombatantObserver {
         int newTotalTime = sm.getTotalTimeElapsed() + (int) battleTimeElapsed;
         sm.setTotalTimeElapsed(newTotalTime);
 
-        if (enemy.getHp() <= 0) {
+        if (enemy.getHp() <= 0 && !isGameOver) {
             isGameOver = true;
-            enemy.setState(com.risetobechampion.frontend.combat.EntityState.DEFEATED);
+            enemy.setActionState(com.risetobechampion.frontend.combat.ActionState.DEFEATED);
             if (currentStage >= 4) {
                 showFinalVictory(newTotalTime);
             } else {
+                // ganti page
                 game.setScreen(new UpgradeScreen(game, deathCount, newTotalTime, player.getMaxHp()));
             }
-        } else if (player.getHp() <= 0) {
+        } else if (player.getHp() <= 0 && !isGameOver) {
             isGameOver = true;
-            player.setState(com.risetobechampion.frontend.combat.EntityState.DEFEATED);
+            player.setActionState(com.risetobechampion.frontend.combat.ActionState.DEFEATED);
             deathCount++;
             sm.setDeathCount(deathCount);
             showGameOverDialog(newTotalTime);
@@ -330,23 +360,28 @@ public class BattleScreen implements Screen, CombatLogger, CombatantObserver {
 
     private void showFinalVictory(int totalTime) {
         hud.setCombatLog("STORY MODE CLEARED!");
+        // simpan progress
         ProgressManager.saveCurrentProgress(4, deathCount, totalTime, "COMPLETED", new ProgressManager.SaveCallback() {
             @Override
             public void onSuccess() {
                 SessionManager.getInstance().resetRunProgress();
+                // ganti page
                 Gdx.app.postRunnable(() -> game.setScreen(new VictoryScreen(game, deathCount, totalTime)));
             }
 
             @Override
             public void onFailure(String errorMsg) {
                 SessionManager.getInstance().resetRunProgress();
+                // ganti page
                 Gdx.app.postRunnable(() -> game.setScreen(new MainMenuScreen()));
             }
         });
     }
 
     private void showGameOverDialog(int totalTime) {
+        com.risetobechampion.frontend.utils.AudioManager.getInstance().playLoseSound();
         hud.setCombatLog("YOU DIED");
+        // simpan progress
         ProgressManager.saveCurrentProgress(currentStage, deathCount, totalTime, "ONGOING", null);
         com.badlogic.gdx.scenes.scene2d.ui.Dialog dialog = new com.badlogic.gdx.scenes.scene2d.ui.Dialog("", skin) {
             @Override
@@ -354,6 +389,7 @@ public class BattleScreen implements Screen, CombatLogger, CombatantObserver {
                 if (object.equals(true)) {
                     fetchCombatSetup();
                 } else {
+                    // ganti page
                     game.setScreen(new MainMenuScreen());
                 }
             }
@@ -379,16 +415,21 @@ public class BattleScreen implements Screen, CombatLogger, CombatantObserver {
         dialog.setObject(tryAgainBtn, true);
         dialog.setObject(backMenuBtn, false);
         
+        uiNavigator = new com.risetobechampion.frontend.game.input.UiControllerNavigator();
+        uiNavigator.addButton(tryAgainBtn);
+        uiNavigator.addButton(backMenuBtn);
+
         dialog.show(stage);
-        
-        // Membatasi ukuran popup agar tidak terlalu besar
+
         dialog.setSize(600f, 350f);
         dialog.setPosition((stage.getWidth() - dialog.getWidth()) / 2f, (stage.getHeight() - dialog.getHeight()) / 2f);
     }
 
     @Override
     public void resize(int width, int height) {
+        // update status secara berkala
         worldViewport.update(width, height, true);
+        // update status secara berkala
         uiViewport.update(width, height, true);
         UiViewportScaler.syncNow(uiViewport, WORLD_WIDTH, WORLD_HEIGHT, 0.9f);
     }
@@ -405,7 +446,11 @@ public class BattleScreen implements Screen, CombatLogger, CombatantObserver {
         if (losePopupTex != null) losePopupTex.dispose();
     }
 
-    @Override public void show() {}
+    @Override
+    public void show() {
+        // putar lagu berantem
+        com.risetobechampion.frontend.utils.AudioManager.getInstance().playFightMusic();
+    }
     @Override public void pause() {}
     @Override public void resume() {}
     @Override public void hide() {}

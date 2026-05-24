@@ -22,6 +22,7 @@ public class CharacterSelectScreen implements Screen {
     private final Viewport viewport;
     private Texture backgroundTexture;
     private Texture backToMenuTex;
+    private com.risetobechampion.frontend.game.input.UiControllerNavigator uiNavigator;
 
     public CharacterSelectScreen() {
         viewport = new FitViewport(1280f, 720f);
@@ -38,7 +39,6 @@ public class CharacterSelectScreen implements Screen {
         rootTable.setBackground(new TextureRegionDrawable(new TextureRegion(backgroundTexture)));
         stage.addActor(rootTable);
 
-        // Label Judul (Bisa langsung ditambahkan)
         Label titleLabel = new Label("PILIH KARAKTER ANDA", skin);
         titleLabel.setFontScale(1.5f);
         rootTable.add(titleLabel).padBottom(40).row();
@@ -48,7 +48,7 @@ public class CharacterSelectScreen implements Screen {
 
         System.out.println("Meminta data karakter ke Backend...");
 
-        // Memanggil API getCharacters
+        // tembak api backend
         com.risetobechampion.frontend.network.ApiClient.getCharacters(new com.badlogic.gdx.Net.HttpResponseListener() {
             @Override
             public void handleHttpResponse(com.badlogic.gdx.Net.HttpResponse httpResponse) {
@@ -58,7 +58,7 @@ public class CharacterSelectScreen implements Screen {
                 Gdx.app.postRunnable(new Runnable() {
                     @Override
                     public void run() {
-                        // Hapus tulisan "Memuat data..."
+
                         rootTable.removeActor(loadingLabel);
                         rootTable.clearChildren(); // Bersihkan isi tabel sementara
 
@@ -67,34 +67,29 @@ public class CharacterSelectScreen implements Screen {
                         if (statusCode == 200) {
                             System.out.println("Data Karakter Diterima: " + responseBody);
 
-                            // Membaca JSON balasan dari Spring Boot
                             com.badlogic.gdx.utils.JsonReader json = new com.badlogic.gdx.utils.JsonReader();
                             com.badlogic.gdx.utils.JsonValue base = json.parse(responseBody);
 
-                            // Looping untuk membuat tombol sebanyak jumlah karakter
                             for (com.badlogic.gdx.utils.JsonValue charNode : base) {
-                                // CATATAN: Ubah "name" sesuai dengan nama kolom/properti di entitas GameCharacter Anda
+
                                 String charName = charNode.getString("name", "Unknown");
                                 int charId = charNode.getInt("charId", 0); // Ambil ID karakternya
 
                                 TextButton charBtn = new TextButton(charName, skin);
                                 rootTable.add(charBtn).width(300).height(50).padBottom(15).row();
 
-                                // Aksi saat tombol karakter dipilih
                                 charBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
                                     @Override
                                     public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
                                         System.out.println("Karakter " + charName + " (ID: " + charId + ") dipilih!");
-                                        
-                                        // Simpan karakter yang dipilih ke SessionManager
+
                                         com.risetobechampion.frontend.utils.SessionManager.getInstance().setSelectedCharacterName(charName);
 
-                                        // Mengambil UserID dari sesi global
                                         String loggedInUserId = com.risetobechampion.frontend.utils.SessionManager.getInstance().getUserId();
 
                                         System.out.println("Memulai game untuk User: " + loggedInUserId + " dengan Karakter ID: " + charId);
 
-                                        // Menembak API /start
+                                        // tembak api backend
                                         com.risetobechampion.frontend.network.ApiClient.startGame(loggedInUserId, charId, new com.badlogic.gdx.Net.HttpResponseListener() {
                                             @Override
                                             public void handleHttpResponse(com.badlogic.gdx.Net.HttpResponse httpResponse) {
@@ -107,17 +102,17 @@ public class CharacterSelectScreen implements Screen {
                                                         if (startStatus == 200) {
                                                             System.out.println("BERHASIL MEMULAI GAME! " + startBody);
 
-                                                            // --- KODE BARU: Menyimpan RunID ke SessionManager ---
                                                             try {
-                                                                // Mengambil teks tepat setelah kata "RunID: "
+
                                                                 String extractedRunId = startBody.substring(startBody.indexOf("RunID: ") + 7).trim();
                                                                 com.risetobechampion.frontend.utils.SessionManager.getInstance().setRunId(extractedRunId);
                                                                 System.out.println("RunID berhasil diamankan di Sesi Global: " + extractedRunId);
                                                             } catch (Exception e) {
                                                                 System.out.println("Gagal mengekstrak RunID dari server!");
                                                             }
-                                                            // -----------------------------------------------------
+
                                                             com.risetobechampion.frontend.utils.SessionManager.getInstance().setCurrentStage(1);
+                                                            // ganti page
                                                             ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new LevelMapScreen());
                                                         } else {
                                                             System.out.println("GAGAL MEMULAI GAME: " + startBody);
@@ -141,16 +136,23 @@ public class CharacterSelectScreen implements Screen {
                             rootTable.add(new Label("Gagal memuat karakter. Error: " + statusCode, skin)).row();
                         }
 
-                        // Selalu tambahkan tombol kembali di paling bawah
                         TextButton backBtn = new TextButton("Kembali ke Main Menu", skin);
                         rootTable.add(backBtn).width(200).height(40).padTop(30).row();
 
                         backBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
                             @Override
                             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
+                                // ganti page
                                 ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new MainMenuScreen());
                             }
                         });
+
+                        uiNavigator = new com.risetobechampion.frontend.game.input.UiControllerNavigator();
+                        for (com.badlogic.gdx.scenes.scene2d.Actor a : rootTable.getChildren()) {
+                            if (a instanceof com.badlogic.gdx.scenes.scene2d.ui.Button) {
+                                uiNavigator.addButton((com.badlogic.gdx.scenes.scene2d.ui.Button) a);
+                            }
+                        }
                     }
                 });
             }
@@ -169,9 +171,12 @@ public class CharacterSelectScreen implements Screen {
                         backBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
                             @Override
                             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
+                                // ganti page
                                 ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new MainMenuScreen());
                             }
                         });
+                        uiNavigator = new com.risetobechampion.frontend.game.input.UiControllerNavigator();
+                        uiNavigator.addButton(backBtn);
                     }
                 });
             }
@@ -182,20 +187,30 @@ public class CharacterSelectScreen implements Screen {
     }
 
     @Override
-    public void show() {}
+    public void show() {
+        // putar lagu menu
+        com.risetobechampion.frontend.utils.AudioManager.getInstance().playMainMusic();
+    }
 
     @Override
     public void render(float delta) {
-        // Warna latar agak kemerahan untuk membedakan dengan Main Menu
+
         Gdx.gl.glClearColor(0.2f, 0.1f, 0.1f, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         stage.act(delta);
+        // render karakter/gambar
         stage.draw();
+
+        if (uiNavigator != null) {
+            // update status secara berkala
+            uiNavigator.update();
+        }
     }
 
     @Override
     public void resize(int width, int height) {
+        // update status secara berkala
         UiViewportScaler.update(viewport, width, height, 1280f, 720f, 0.9f);
     }
 

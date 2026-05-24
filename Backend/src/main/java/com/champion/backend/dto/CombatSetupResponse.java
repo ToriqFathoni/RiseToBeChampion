@@ -28,7 +28,6 @@ public class CombatSetupResponse {
         this.enemy = enemy;
     }
 
-    // Inner classes for Player and Enemy combat data
     public static class PlayerCombatData {
         private Long id;
         private String name;

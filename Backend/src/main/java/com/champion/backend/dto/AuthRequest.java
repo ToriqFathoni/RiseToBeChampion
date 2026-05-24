@@ -20,5 +20,4 @@ public class AuthRequest {
         this.password = password;
     }
 
-    // Generate Getter dan Setter untuk username dan password di sini (Alt+Insert)
 }

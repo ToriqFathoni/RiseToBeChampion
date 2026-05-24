@@ -34,7 +34,6 @@ public class RegisterScreen implements Screen {
         Gdx.input.setInputProcessor(stage);
         UiViewportScaler.syncNow(viewport, 1280f, 720f, 0.9f);
 
-        // Initialize batch and load background texture
         batch = new SpriteBatch();
         backgroundTexture = new Texture(Gdx.files.internal("Looks/LandingPage.png"));
         backgroundRegion = new TextureRegion(backgroundTexture);
@@ -48,12 +47,11 @@ public class RegisterScreen implements Screen {
 
         Table formTable = new Table();
 
-        // --- MEMBUAT ELEMEN UI ---
         newUsernameTex = new Texture(Gdx.files.internal("Looks/new-username.png"));
         newPasswordTex = new Texture(Gdx.files.internal("Looks/new-password.png"));
         loginBtnTex = new Texture(Gdx.files.internal("Looks/login-button.png"));
         registerBtnTex = new Texture(Gdx.files.internal("Looks/register-button.png"));
-        // Custom field style to remove default background
+
         com.badlogic.gdx.scenes.scene2d.ui.TextField.TextFieldStyle customFieldStyle = new com.badlogic.gdx.scenes.scene2d.ui.TextField.TextFieldStyle(skin.get(com.badlogic.gdx.scenes.scene2d.ui.TextField.TextFieldStyle.class));
         customFieldStyle.background = new com.badlogic.gdx.scenes.scene2d.utils.BaseDrawable();
         customFieldStyle.focusedBackground = new com.badlogic.gdx.scenes.scene2d.utils.BaseDrawable();
@@ -81,7 +79,6 @@ public class RegisterScreen implements Screen {
         final Label statusLabel = new Label("", skin); // Untuk menampilkan pesan sukses/gagal
         statusLabel.setColor(1f, 0.3f, 0.3f, 1f);
 
-        // --- MENYUSUN TATA LETAK ---
         Table userContainer = new Table();
         userContainer.setBackground(new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(new TextureRegion(newUsernameTex)));
         userContainer.add(usernameField).expand().fill().padLeft(110f).padRight(15f).padTop(8f);
@@ -104,10 +101,10 @@ public class RegisterScreen implements Screen {
         rootTable.row();
         rootTable.add(formTable).padBottom(10f);
 
-        // --- LOGIKA TOMBOL ---
         backToLoginBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
             @Override
             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
+                // ganti page
                 ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new LoginScreen());
             }
         });
@@ -125,7 +122,7 @@ public class RegisterScreen implements Screen {
 
                 statusLabel.setText("Memproses pendaftaran...");
 
-                // Menembak API Register
+                // tembak api backend
                 com.risetobechampion.frontend.network.ApiClient.register(inputUser, inputPass, new com.badlogic.gdx.Net.HttpResponseListener() {
                     @Override
                     public void handleHttpResponse(com.badlogic.gdx.Net.HttpResponse httpResponse) {
@@ -137,7 +134,8 @@ public class RegisterScreen implements Screen {
                             public void run() {
                                 if (statusCode == 200) {
                                     System.out.println("Register Sukses: " + responseBody);
-                                    // Langsung lempar kembali ke layar Login jika sukses
+
+                                    // ganti page
                                     ((com.badlogic.gdx.Game) Gdx.app.getApplicationListener()).setScreen(new LoginScreen());
                                 } else {
                                     System.out.println("Register Gagal: " + responseBody);
@@ -165,20 +163,23 @@ public class RegisterScreen implements Screen {
     }
 
     @Override
-    public void show() {}
+    public void show() {
+        // putar lagu menu
+        com.risetobechampion.frontend.utils.AudioManager.getInstance().playMainMusic();
+    }
 
     @Override
     public void render(float delta) {
         Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        // Draw background image across the full window area
         batch.setProjectionMatrix(new com.badlogic.gdx.math.Matrix4().setToOrtho2D(0f, 0f, Gdx.graphics.getWidth(), Gdx.graphics.getHeight()));
         batch.begin();
         drawBackgroundFullscreen(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         batch.end();
 
         stage.act(delta);
+        // render karakter/gambar
         stage.draw();
     }
 
@@ -207,11 +208,13 @@ public class RegisterScreen implements Screen {
             drawY = (screenHeight - drawHeight) / 2f;
         }
 
+        // render karakter/gambar
         batch.draw(backgroundRegion, drawX, drawY, drawWidth, drawHeight);
     }
 
     @Override
     public void resize(int width, int height) {
+        // update status secara berkala
         UiViewportScaler.update(viewport, width, height, 1280f, 720f, 0.9f);
     }
 

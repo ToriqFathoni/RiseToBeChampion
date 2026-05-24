@@ -11,9 +11,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.risetobechampion.frontend.combat.Combatant;
 
-/**
- * Handles the HUD for the battle screen, enforcing MVC architecture.
- */
 public class BattleHUD {
     private final Skin skin;
     private final Stage stage;
@@ -126,6 +123,7 @@ public class BattleHUD {
         p2EnergyBar.setStyle(p2EStyle);
     }
 
+    // update status secara berkala
     public void update(float delta) {
         if (energyWarningTimer > 0f) {
             energyWarningTimer -= delta;
@@ -157,7 +155,7 @@ public class BattleHUD {
     }
 
     public void setCombatLog(String text) {
-        // Combat log is disabled
+
     }
 
     public void showEnergyWarning() {

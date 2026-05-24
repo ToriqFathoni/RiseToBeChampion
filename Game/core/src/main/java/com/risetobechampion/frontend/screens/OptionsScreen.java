@@ -23,6 +23,7 @@ public class OptionsScreen implements Screen {
     private final Game game;
     private final Stage stage;
     private final Skin skin;
+    private com.risetobechampion.frontend.game.input.UiControllerNavigator uiNavigator;
 
     private Texture backgroundTexture;
     private Texture panelTexture;
@@ -66,28 +67,37 @@ public class OptionsScreen implements Screen {
         title.setAlignment(Align.center);
         panel.add(title).colspan(2).padBottom(30f).row();
 
-        // Columns for Player 1 and Player 2
-        Table player1Table = createControlsTable("PLAYER 1", 
+        Table player1Table = createControlsTable("PLAYER 1 / KEYBOARD", 
             new String[]{"Movement", "Jump", "Basic Attack", "Heavy Attack", "Skill", "Ultimate", "Defend", "Taunt", "Pause"},
             new String[]{"W, A, S, D", "W", "J", "K", "L", "I", "P", "T", "ESC"}
         );
 
-        Table player2Table = createControlsTable("PLAYER 2 (Local Multiplayer)", 
+        Table player2Table = createControlsTable("PLAYER 2 / KEYBOARD", 
             new String[]{"Movement", "Jump", "Basic Attack", "Heavy Attack", "Skill", "Ultimate", "Defend", "Taunt", "Pause"},
             new String[]{"Arrow Keys", "Up Arrow", "Num 1", "Num 2", "Num 3", "Num 4", "Num 5", "Num 0", "N/A"}
         );
 
-        panel.add(player1Table).width(400f).padRight(20f).top();
-        panel.add(player2Table).width(400f).padLeft(20f).top().row();
+        Table controllerTable = createControlsTable("CONTROLLER (P1/P2)", 
+            new String[]{"Movement", "Jump", "Basic Attack", "Heavy Attack", "Skill", "Ultimate", "Defend", "Taunt"},
+            new String[]{"D-Pad / Left Stick", "A / Cross", "X / Square", "Y / Triangle", "B / Circle", "RB / R1", "LB / L1", "Start"}
+        );
+
+        panel.add(player1Table).width(300f).padRight(10f).top();
+        panel.add(player2Table).width(300f).padRight(10f).top();
+        panel.add(controllerTable).width(300f).padLeft(10f).top().row();
 
         ImageButton backBtn = new ImageButton(new TextureRegionDrawable(new TextureRegion(backBtnTex)));
         backBtn.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
+                // ganti page
                 game.setScreen(new MainMenuScreen());
             }
         });
-        panel.add(backBtn).colspan(2).padTop(40f).width(250f).height(50f).center();
+        panel.add(backBtn).colspan(3).padTop(40f).width(250f).height(50f).center();
+
+        uiNavigator = new com.risetobechampion.frontend.game.input.UiControllerNavigator();
+        uiNavigator.addButton(backBtn);
     }
 
     private Table createControlsTable(String playerName, String[] actions, String[] keys) {
@@ -121,15 +131,26 @@ public class OptionsScreen implements Screen {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         stage.act(delta);
+        // render karakter/gambar
         stage.draw();
+
+        if (uiNavigator != null) {
+            // update status secara berkala
+            uiNavigator.update();
+        }
     }
 
     @Override
     public void resize(int width, int height) {
+        // update status secara berkala
         stage.getViewport().update(width, height, true);
     }
 
-    @Override public void show() {}
+    @Override
+    public void show() {
+        // putar lagu menu
+        com.risetobechampion.frontend.utils.AudioManager.getInstance().playMainMusic();
+    }
     @Override public void pause() {}
     @Override public void resume() {}
     @Override public void hide() {}
