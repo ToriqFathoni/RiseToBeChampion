@@ -8,11 +8,8 @@ group = 'com.champion'
 version = '0.0.1-SNAPSHOT'
 description = 'backend'
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
-}
+sourceCompatibility = '17'
+targetCompatibility = '17'
 
 repositories {
     mavenCentral()
